@@ -6773,7 +6773,7 @@ function drawPreviewHome(withUI, transitionTime) {
     if (!withUI) return;
     drawHomeLogo();
     drawPixelPanel(new Rect(452, 216, 308, 52), CREAM, FOREST, 3);
-    previewText(homeWords("进屋和我们一起玩吧", "Come inside and play!"), [606, 242], 2, FOREST, 284);
+    previewText(homeWords("点门进屋，一起玩吧", "Tap the door to play!"), [606, 242], 2, FOREST, 284);
     fillRect(FOREST, 542, 268, 12, 4); fillRect(FOREST, 546, 272, 4, 8);
     var hovered = homeFly.contains(mouseX, mouseY);
     drawPixelPanel(homeFly.move(0, hovered ? -2 : 0), hovered ? FOREST : LEAF, FOREST, 4);
