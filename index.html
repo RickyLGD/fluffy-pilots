@@ -33,7 +33,7 @@
         }
         if (pageLanguage === "en") {
             document.documentElement.lang = "en";
-            document.title = "Flight Friends";
+            document.title = "Fluffy Pilots";
         }
     </script>
     <link rel="icon" type="image/png" href="favicon.png?v=9668a00899">
@@ -310,7 +310,7 @@
             page_language: document.documentElement.lang === "en" ? "en" : "zh",
             // Which published build this visitor is running, so two versions can be compared.
             // The build writes it in here, because this runs before the page sets GAME_VERSION.
-            game_version: "51b128b83852",
+            game_version: "52f162c4231b",
             $process_person_profile: false
         };
         for (var name in details) properties[name] = details[name];
@@ -414,7 +414,7 @@
     </div>
     <div class="app-welcome" id="app-welcome" hidden>
         <img class="app-welcome-icon" src="app-icon-192.png?v=8301624e16" alt="">
-        <h1><span class="zh">飞行搭档</span><span class="en">Flight Friends</span></h1>
+        <h1><span class="zh">飞行搭档</span><span class="en">Fluffy Pilots</span></h1>
         <p><span class="zh">和真实的宠物一起飞，<br>把新伙伴一只只接回家</span><span class="en">Fly with real pets<br>and bring new friends home</span></p>
         <div class="app-welcome-pets" aria-hidden="true">
             <span style="background-image: url(pets/erbao.jpg?v=58333dc8ae); -webkit-mask-image: url(pets/erbao.mask.png?v=af91a0e3cc); mask-image: url(pets/erbao.mask.png?v=af91a0e3cc)"></span>
@@ -445,7 +445,7 @@
                     <svg class="app-share" viewBox="0 0 15 18" fill="none" stroke="#2f7cf6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 1.5v10M4 5l3.5-3.5L11 5M4.5 8H2.5v8.5h10V8h-2"/></svg>
                     <span class="zh">（新版 Safari 先点右下角的 <b>···</b>）</span><span class="en">(in newer Safari, tap <b>···</b> first)</span></li>
                 <li><span class="zh">往下找，选<b>「添加到主屏幕」</b></span><span class="en">Scroll down and choose <b>Add to Home Screen</b></span></li>
-                <li><span class="zh">打开桌面上的<b>飞行搭档</b></span><span class="en">Open <b>Flight Friends</b> from your home screen</span></li>
+                <li><span class="zh">打开桌面上的<b>飞行搭档</b></span><span class="en">Open <b>Fluffy Pilots</b> from your home screen</span></li>
             </ol>
             <p class="app-note" id="app-copied" hidden>
                 <span class="zh">✓ 你的进度已经复制好了。打开桌面上的飞行搭档后点<b>「粘贴进度」</b>，金币、宠物和家具都会搬过去。</span>
@@ -480,7 +480,7 @@
     </div>
     <div class="app-toast" id="app-move-done" hidden><span class="zh">搬好了！</span><span class="en">All moved in!</span></div>
 
-    <script>window.GAME_VERSION = "51b128b83852";</script>
+    <script>window.GAME_VERSION = "52f162c4231b";</script>
     <script>
     try {
         window.flightFriendsStartedEmpty = !(localStorage.getItem("flight_friends_pets") || localStorage.getItem("flight_friends_best_score"));
@@ -507,6 +507,6 @@
         if (!window.flightFriends) gameScriptFailed(true);
     }, 15000);
     </script>
-    <script src="game.js?v=172f49f78a" onerror="gameScriptFailed()"></script>
+    <script src="game.js?v=26132f93ed" onerror="gameScriptFailed()"></script>
 </body>
 </html>
