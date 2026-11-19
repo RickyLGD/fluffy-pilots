@@ -6854,9 +6854,10 @@ function drawPreviewHome(withUI, transitionTime) {
     screen.drawImage(previewHomeWorld, 0, 0, 800, 600);
     var welcomeBeat = Math.sin(time * 2.4);
     var houseHovered = homeParkTapped(mouseX, mouseY);
-    // Opens wide when clicked; until then it opens a crack now and then (and on hover) to
-    // invite a tap. The door is drawn behind every foreground pet.
-    drawHomeDoor(entering ? Math.min(1, transitionTime / .45) : houseHovered ? .22 : homeDoorPeek(time), houseHovered);
+    // The door swings open while the pointer is on the house and closes when it leaves; a click
+    // opens it all the way. It never moves by itself. Drawn behind every foreground pet.
+    homeDoorOpen += ((houseHovered && !isTouchScreen ? HOME_DOOR_HOVER_OPEN : 0) - homeDoorOpen) * .2;
+    drawHomeDoor(entering ? Math.max(homeDoorOpen, Math.min(1, transitionTime / .45)) : homeDoorOpen, houseHovered);
     if (!entering) drawHomeDoorArrow(time);
     // Sherry's feet rest on the ridge, visibly above the roof, never on the facade.
     if (displayed.length > 1) previewPet(PETS[displayed[1]].id, "sit" + Math.floor(time * 2) % 2, 610, 314, 1, false);
@@ -6902,11 +6903,8 @@ function drawPreviewHome(withUI, transitionTime) {
 function homeParkTapped(x, y) {
     return homeDoor.contains(x, y) || homePark.contains(x, y) || homeParkHint.contains(x, y);
 }
-function homeDoorPeek(time) {
-    // Every 6 seconds the door opens a crack and warm light shows, inviting a tap.
-    var phase = (time % 6) - 4;
-    return phase > 0 && phase < 1.2 ? Math.sin(Math.PI * phase / 1.2) * .22 : 0;
-}
+var homeDoorOpen = 0;              // How far the door is open now (0 shut, 1 wide open).
+var HOME_DOOR_HOVER_OPEN = .6;      // How far it swings open while the pointer is on the house.
 function drawHomeDoorArrow(time) {
     // A small bobbing arrow over the door, so it is clear where "inside" is.
     var x = 668, y = 386 + Math.round(Math.sin(time * 4) * 2);
