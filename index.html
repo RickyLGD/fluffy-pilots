@@ -56,12 +56,14 @@
         body[data-theme="0"] #page-sky-0,
         body[data-theme="1"] #page-sky-1,
         body[data-theme="2"] #page-sky-2 { opacity: 1; }
-        /* The game stays 4:3. A shadow instead of a border keeps the mouse position exact.
+        /* The play area stays 4:3. In a wide window the game is wider too, like on a phone turned
+           sideways: the world carries on beside the play area (SIDE in game.js), up to 2.4 : 1.
+           A shadow instead of a border keeps the mouse position exact.
            Smooth scaling keeps moving pixels even, because the game is rarely a whole-number size. */
         canvas#canvas {
             position: fixed; top: 0; right: 0; bottom: 0; left: 0; margin: auto; z-index: 2;
             width: 800px; height: 600px;
-            width: min(calc(100vw - 56px), calc((100vh - 56px) * 4 / 3));
+            width: min(calc(100vw - 56px), calc((100vh - 56px) * 2.4));
             height: min(calc(100vh - 56px), calc((100vw - 56px) * 3 / 4));
             image-rendering: auto;
             border-radius: 10px;
@@ -310,7 +312,7 @@
             page_language: document.documentElement.lang === "en" ? "en" : "zh",
             // Which published build this visitor is running, so two versions can be compared.
             // The build writes it in here, because this runs before the page sets GAME_VERSION.
-            game_version: "f358f792ed8d",
+            game_version: "8d87ad03eb31",
             $process_person_profile: false
         };
         for (var name in details) properties[name] = details[name];
@@ -480,7 +482,7 @@
     </div>
     <div class="app-toast" id="app-move-done" hidden><span class="zh">搬好了！</span><span class="en">All moved in!</span></div>
 
-    <script>window.GAME_VERSION = "f358f792ed8d";</script>
+    <script>window.GAME_VERSION = "8d87ad03eb31";</script>
     <script>
     try {
         window.flightFriendsStartedEmpty = !(localStorage.getItem("flight_friends_pets") || localStorage.getItem("flight_friends_best_score"));
@@ -507,6 +509,6 @@
         if (!window.flightFriends) gameScriptFailed(true);
     }, 15000);
     </script>
-    <script src="game.js?v=f6b2e97b94" onerror="gameScriptFailed()"></script>
+    <script src="game.js?v=b964512739" onerror="gameScriptFailed()"></script>
 </body>
 </html>

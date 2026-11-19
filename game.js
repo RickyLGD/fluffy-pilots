@@ -481,7 +481,8 @@ PETS.forEach(function (pet, index) {
 
 var planeImage = null;
 var characterImages = [], characterHeads = [], characterPortraits = [];
-var selected_character = 0;
+// New players fly with 二宝 first: the pets are the point of the game, so she is in the plane.
+var selected_character = PET_INDEX_BY_ID.erbao;
 var pilot_head = null;
 
 var character_cards = [];
@@ -5439,7 +5440,7 @@ function drawMessagePanel() {
         drawText(tr("run_score", {n: score}), 3, [400, 212]);
             drawText(tr("best_score", {n: best_score}), 3, [400, 262], DARK_RED);
         if (new_best) {
-            var record = new Rect(280, 292, 240, 40);
+            var record = new Rect(220, 292, 360, 40);  // As wide as the next-friend bar: the English fits.
             drawPixelPanel(record, SUN, INK, 0);
             drawText(tr("new_best"), 2, record.center());
         } else if (getPillarsLeft() !== null) {
@@ -5649,7 +5650,8 @@ function updateResolution() {
     // The canvas's own size on the page, before any turning: a turned page swaps the
     // width and height of the box the browser measures around it.
     var box = {width: canvas.clientWidth, height: canvas.clientHeight};
-    var wide = (wideScreen && wideScreen.matches) || isTurned();
+    // Phones turned sideways and wide computer windows both get world beside the play area.
+    var wide = (wideScreen && wideScreen.matches) || isTurned() || !isTouchScreen;
     var side = wide ? getSideFor(box.width, box.height) : 0;
     // Wider than the widest world: keep the shape, with a thin strip at both ends.
     canvas.style.maxWidth = side === MAXIMUM_SIDE ? Math.floor(box.height * (WIDTH + 2 * side) / HEIGHT) + "px" : "";
@@ -6879,7 +6881,11 @@ function drawPreviewHome(withUI, transitionTime) {
     if (!withUI) return;
     drawHomeLogo();
     drawPixelPanel(new Rect(452, 216, 308, 52), CREAM, FOREST, 3);
-    previewText(homeWords("进屋陪宠物们玩", "Play with pets inside!"), [606, 242], 2, FOREST, 284);
+    // Drawn twice, a little apart, so the strokes are heavy and the words read from across the screen.
+    // Chinese characters have finer strokes, so they move half as far or they turn muddy.
+    var hint = homeWords("进屋陪宠物们玩", "Play with pets inside!"), nudge = language === "en" ? .5 : .25;
+    previewText(hint, [606 - nudge, 242], 2, FOREST, 283);
+    previewText(hint, [606 + nudge, 242], 2, FOREST, 283);
     fillRect(FOREST, 542, 268, 12, 4); fillRect(FOREST, 546, 272, 4, 8);
     var hovered = homeFly.contains(mouseX, mouseY);
     // Yellow means "go play" everywhere: Start flying, Take off, Fly again.
