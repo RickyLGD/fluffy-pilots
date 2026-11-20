@@ -6546,7 +6546,8 @@ function updateBoxGame() {
             }
         } else pair.members.forEach(function(v) {v.x+=v.dir*v.speed/60;});
     });
-    r.visitors = r.visitors.filter(function(v){return v.x>-90&&v.x<890;});
+    // They leave past the window's real edges (a wide screen shows more garden at each side).
+    r.visitors = r.visitors.filter(function(v){return v.x>-SIDE-90&&v.x<WIDTH+SIDE+90;});
     r.visitorPairs = (r.visitorPairs || []).filter(function(pair) {
         return pair.members.some(function(v){return r.visitors.indexOf(v)>=0;});
     });
@@ -6562,7 +6563,8 @@ function spawnBoxVisitorPair() {
     var pair={phase:"approach",action:["play","sniff","circle"][wave%3],
         center:260+(wave%3)*140,ground:layer==="back"?476:574,layer:layer,members:[]};
     for(var i=0;i<2;i++) {
-        var v={pet:choices[i],x:i===0?-64:864,y:pair.ground,dir:i===0?1:-1,
+        // They walk in from just past the window's edges, not from the middle of a wide screen.
+        var v={pet:choices[i],x:i===0?-SIDE-64:WIDTH+SIDE+64,y:pair.ground,dir:i===0?1:-1,
             speed:BOX_VISITOR_SPEED[0]+Math.random()*(BOX_VISITOR_SPEED[1]-BOX_VISITOR_SPEED[0]),pair:pair,side:i};
         pair.members.push(v);r.visitors.push(v);
     }
