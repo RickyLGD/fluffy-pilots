@@ -496,8 +496,15 @@ var partner_slot_pet = FOUNDER_PETS[6];
 var linked_pet = null;
 var linked_pets = [];  // Every pet from the link, in order; they take the first cards.
 var album_open = false, album_page = 0;
-var album_previous_button = new Rect(90, 396, 130, 44);
-var album_next_button = new Rect(580, 396, 130, 44);
+// The album has the screen to itself, so it spreads from top to bottom: taller cards and
+// more room between the rows and the buttons than the friend picker's cards.
+var album_cards = [];
+[146, 302].forEach(function (top) {
+    for (var column = 0; column < 4; column++) album_cards.push(new Rect(18 + column * 192, top, 188, 144));
+});
+var album_previous_button = new Rect(90, 466, 130, 44);
+var album_next_button = new Rect(580, 466, 130, 44);
+var album_back_button = new Rect(200, 528, 400, 52);
 var start_button = new Rect(200, 448, 400, 52);
 var UPLOAD_FORM_URL = D.form_url;
 var UPLOAD_FORM_URL_EN = D.form_url_en || "";  // The English questionnaire, once there is one.
@@ -1535,10 +1542,10 @@ function handleAlbum(event) {
             album_page = pmod(album_page - 1, pages);
         } else if (album_next_button.contains(event.x, event.y)) {
             album_page = pmod(album_page + 1, pages);
-        } else if (start_button.contains(event.x, event.y)) {
+        } else if (album_back_button.contains(event.x, event.y)) {
             album_open = false;
         } else {
-            character_cards.forEach(function (rect, position) {
+            album_cards.forEach(function (rect, position) {
                 if (rect.contains(event.x, event.y)) chooseAlbumPet(position);
             });
         }
@@ -2390,28 +2397,30 @@ function blitCentered(picture, centerX, centerY) {
 
 function drawPetCard(card, pet, number, selected) {
     drawPixelPanel(card, selected ? SUN : CREAM);
-    blitCentered(characterPortraits[pet], card.x + 44, card.y + 74);
+    var top = card.y + Math.floor((card.h - 128) / 2);  // The contents are laid out for a 128-high card.
+    blitCentered(characterPortraits[pet], card.x + 44, top + 74);
     if (owned_pets[pet]) drawCrown(card.right() - 24, card.y + 6);
     var badge = new Rect(card.x + 8, card.y + 8, 30, 30);
     drawPixelPanel(badge, selected ? LEAF : SAND, INK, 0);
     drawText(String(number), 2, badge.center(), selected ? CREAM : INK);
     var textX = card.x + 133;
     // 98 wide: from just right of the photo to 6 pixels before the card's right edge.
-    drawFittedText(getPetName(pet), [textX, card.y + 32], 98);
+    drawFittedText(getPetName(pet), [textX, top + 32], 98);
     getPetIntro(pet).forEach(function (line, lineNumber) {
-        drawFittedText(line, [textX, card.y + 68 + lineNumber * 26], 108, selected ? INK : FOREST);
+        drawFittedText(line, [textX, top + 68 + lineNumber * 26], 108, selected ? INK : FOREST);
     });
 }
 
 function drawLockedCard(card, pet, number) {
     drawPixelPanel(card, SAND);
-    blitCentered(getSilhouette(pet), card.x + 44, card.y + 74);
+    var top = card.y + Math.floor((card.h - 128) / 2);  // As in drawPetCard.
+    blitCentered(getSilhouette(pet), card.x + 44, top + 74);
     var badge = new Rect(card.x + 8, card.y + 8, 30, 30);
     drawPixelPanel(badge, CREAM, INK, 0);
     drawText(String(number), 2, badge.center());
-    drawText("？？？", 2, [card.x + 135, card.y + 50]);
-    drawFittedText(tr("locked_1"), [card.x + 135, card.y + 80], 100, DARK_RED);
-    drawFittedText(tr("locked_2"), [card.x + 135, card.y + 104], 100, DARK_RED);
+    drawText("？？？", 2, [card.x + 135, top + 50]);
+    drawFittedText(tr("locked_1"), [card.x + 135, top + 80], 100, DARK_RED);
+    drawFittedText(tr("locked_2"), [card.x + 135, top + 104], 100, DARK_RED);
 }
 
 function drawAlbumCard(card) {
@@ -2429,22 +2438,22 @@ function drawAlbumCard(card) {
 }
 
 function drawAlbum() {
-    var ribbon = new Rect(236, 16, 328, 62);
+    var ribbon = new Rect(236, 22, 328, 62);
     drawPixelPanel(ribbon, LEAF);
     drawText(tr("album"), 3, ribbon.center(), CREAM);
-    drawFittedText(tr("album_hint", {n: countKeys(unlocked_pets), total: PETS.length}), [400, 104], 760, CREAM, 2, INK);
+    drawFittedText(tr("album_hint", {n: countKeys(unlocked_pets), total: PETS.length}), [400, 118], 760, CREAM, 2, INK);
     getAlbumPagePets().forEach(function (pet, position) {
-        if (unlocked_pets[pet]) drawPetCard(character_cards[position], pet, position + 1, pet === selected_character);
-        else drawLockedCard(character_cards[position], pet, position + 1);
+        if (unlocked_pets[pet]) drawPetCard(album_cards[position], pet, position + 1, pet === selected_character);
+        else drawLockedCard(album_cards[position], pet, position + 1);
     });
     var pages = Math.floor((PETS.length - 1) / album_page_size) + 1;
     [[album_previous_button, tr("previous")], [album_next_button, tr("next")]].forEach(function (item) {
         drawPixelPanel(item[0], CREAM, INK, 4);
         drawText(item[1], 2, item[0].center());
     });
-    drawText(tr("page", {n: album_page + 1, total: pages}), 2, [400, 418], CREAM, INK);
-    drawPixelPanel(start_button, LEAF);
-    drawFittedText(tr("album_back"), start_button.center(), start_button.w - 16, CREAM, 3);
+    drawText(tr("page", {n: album_page + 1, total: pages}), 2, [400, 488], CREAM, INK);
+    drawPixelPanel(album_back_button, LEAF);
+    drawFittedText(tr("album_back"), album_back_button.center(), album_back_button.w - 16, CREAM, 3);
 }
 
 var mouseX = -1, mouseY = -1;

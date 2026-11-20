@@ -308,7 +308,7 @@
             page_language: document.documentElement.lang === "en" ? "en" : "zh",
             // Which published build this visitor is running, so two versions can be compared.
             // The build writes it in here, because this runs before the page sets GAME_VERSION.
-            game_version: "d0bb0e2c57b1",
+            game_version: "82cda75bdf6d",
             $process_person_profile: false
         };
         for (var name in details) properties[name] = details[name];
@@ -478,7 +478,7 @@
     </div>
     <div class="app-toast" id="app-move-done" hidden><span class="zh">搬好了！</span><span class="en">All moved in!</span></div>
 
-    <script>window.GAME_VERSION = "d0bb0e2c57b1";</script>
+    <script>window.GAME_VERSION = "82cda75bdf6d";</script>
     <script>
     try {
         window.flightFriendsStartedEmpty = !(localStorage.getItem("flight_friends_pets") || localStorage.getItem("flight_friends_best_score"));
@@ -505,6 +505,6 @@
         if (!window.flightFriends) gameScriptFailed(true);
     }, 15000);
     </script>
-    <script src="game.js?v=e7442f2aba" onerror="gameScriptFailed()"></script>
+    <script src="game.js?v=1dbb989341" onerror="gameScriptFailed()"></script>
 </body>
 </html>
