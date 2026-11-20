@@ -6471,8 +6471,10 @@ var MINI_GAMES = [
 var box_open = false, box_round = null;
 var BOX_SLOTS = [160, 400, 640], BOX_COUNT = 18;
 // Dogs visit in pairs while the boxes move. At most four at a time (five with the hidden pet),
-// walking at an easy pace, so the screen never gets crowded.
-var BOX_MOST_VISITORS = 4, BOX_VISITOR_SPEED = [85, 95];
+// so the screen never gets crowded. They trot in from the edges in about two seconds however
+// wide the screen is (seconds, a little different for each dog), so they meet up well before
+// the boxes stop, and leave at the same pace.
+var BOX_MOST_VISITORS = 4, BOX_VISITOR_ARRIVE = [1.8, 2.1];
 // How long one swap of two boxes takes, and the short rest between swaps (milliseconds).
 var BOX_SWAP_TIME = 320, BOX_SWAP_REST = 60;
 // Paw coins for finding the pet. A round takes about 13 seconds, so always finding it pays about
@@ -6564,8 +6566,10 @@ function spawnBoxVisitorPair() {
         center:260+(wave%3)*140,ground:layer==="back"?476:574,layer:layer,members:[]};
     for(var i=0;i<2;i++) {
         // They walk in from just past the window's edges, not from the middle of a wide screen.
-        var v={pet:choices[i],x:i===0?-SIDE-64:WIDTH+SIDE+64,y:pair.ground,dir:i===0?1:-1,
-            speed:BOX_VISITOR_SPEED[0]+Math.random()*(BOX_VISITOR_SPEED[1]-BOX_VISITOR_SPEED[0]),pair:pair,side:i};
+        var start=i===0?-SIDE-64:WIDTH+SIDE+64, goal=pair.center+(i===0?-42:42);
+        var arrive=BOX_VISITOR_ARRIVE[0]+Math.random()*(BOX_VISITOR_ARRIVE[1]-BOX_VISITOR_ARRIVE[0]);
+        var v={pet:choices[i],x:start,y:pair.ground,dir:i===0?1:-1,
+            speed:Math.abs(goal-start)/arrive,pair:pair,side:i};  // Pixels a second.
         pair.members.push(v);r.visitors.push(v);
     }
     r.visitorPairs.push(pair);
