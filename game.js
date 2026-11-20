@@ -5305,6 +5305,9 @@ function drawFoodRow(foods, left, y) {
 }
 
 function drawCatchChoose() {
+    // The snack scene behind the card (the last round's, or the picnic), dimmed like the results.
+    var scene = catch_round.background || "picnic";
+    drawScene(catchBackgrounds[scene], "catch/" + scene);
     drawOverlay(90);
     drawPixelPanel(new Rect(20, 92, 760, 494));
     drawCatchTop(tr("catch_title"));
@@ -5359,7 +5362,7 @@ function drawCatchPlay() {
     });
     // The top: time left, hearts and how much food so far.
     drawCatchTop(tr("catch_count", {n: round.score}));
-    drawCatchHearts(round.hearts, 18, 74, 5);
+    drawCatchHearts(round.hearts, catch_back_button.x + 4, 74, 5);  // Under the back button.
     var bar = new Rect(250, 86, 300, 16), left = 1 - getCatchProgress();
     fillRect(INK, bar.x - 3, bar.y - 3, bar.w + 6, bar.h + 6);
     fillRect(CREAM, bar.x, bar.y, bar.w, bar.h);
@@ -5382,7 +5385,7 @@ function drawCatchDone() {
     drawCatchHearts(round.hearts, 400 - Math.floor((3 * 41 - 6) / 2), 198, 5);
     drawFittedText(tr("catch_result", {n: round.score}), [400, 256], 600);
     drawFittedText(tr("catch_reward", {hearts: round.hearts, n: round.earned}), [400, 296], 600, DARK_RED, 3);
-    drawWrappedText(tr("catch_tip"), [400, 330], 600, FOREST);
+    drawWrappedText(tr("catch_tip"), [400, 338], 660, FOREST, 2, 24);  // Two lines, clear of the pet.
     // The pet cheers when there are hearts left, and sits quietly when there are none.
     var pose = round.hearts > 0 ? "happy" + Math.floor(ambient_frames / 20) % 2 : "sit0";
     drawCatchPet(round.pet, pose, false, park_pet_scale, 400, 474, true, false);
@@ -6943,12 +6946,14 @@ function layOutHome() {
         var keep = function (side) { return function (rect) { return {rect: rect, x: rect.x, side: side}; }; };
         homeLayout = [homeFly].map(keep("plane"))
             .concat([homePark, homeParkHint, homeDoor].map(keep("house")))
-            .concat([language_button].map(keep("left corner")))
+            .concat([language_button, homeBack, catch_back_button, boxBackButton, quiz_back_button].map(keep("left corner")))
             .concat([upload_button, sound_button, homeGames].map(keep("right corner")));
     }
     var home = onHomePage();
     homeShift = home && SIDE >= HOME_SPREAD + 16 && homeSpreadReady() ? HOME_SPREAD : 0;
-    var corner = home || parkShift ? SIDE : 0;  // The park uses the corners too (layOutPark).
+    // Every menu screen (home, the games list, the park, the mini-games) puts its corner
+    // buttons in the window's real corners on a wide screen; a flight keeps them by the play area.
+    var corner = onCharacterScreen() && link_page_pet === null ? SIDE : 0;
     homeLayout.forEach(function (item) {
         item.rect.x = item.x + {"plane": -homeShift, "house": homeShift, "left corner": -corner, "right corner": corner}[item.side];
     });
