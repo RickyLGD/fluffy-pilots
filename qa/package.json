@@ -1,0 +1,11 @@
+{
+  "name": "fluffy-pilots-qa",
+  "private": true,
+  "description": "Automatic checks for the Fluffy Pilots web build, used by the debug agent.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.0"
+  }
+}
