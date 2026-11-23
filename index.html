@@ -272,7 +272,21 @@
     var KEY = "phc_nV6D9iCxsfsMbCe7FxLUqFneY9r5QrCSM6MUQZHs5gdU", HOST = "https://us.i.posthog.com";
     window.flightFriendsTrack = function () {};
     if (navigator.globalPrivacyControl || !window.fetch) return;
-    if (/[?&]dev=/.test(location.search)) return;  // The developer's own link is never counted.
+    // The developer's own link is never counted, and the browser that opened it is remembered,
+    // so later visits from that same phone or computer stay uncounted even without ?dev=.
+    try {
+        if (/[?&]dev=/.test(location.search)) localStorage.setItem("flight_friends_dev", "1");
+        if (localStorage.getItem("flight_friends_dev") === "1") return;
+    } catch (e) {}
+    if (/[?&]dev=/.test(location.search)) return;
+    // Test copies built on this computer (localhost, 127.0.0.1, a home network address or a
+    // file) are never counted: only the website that players open.
+    var where = location.hostname;
+    if (!where || where === "localhost" || where === "0.0.0.0" || where === "[::1]" || where === "::1"
+        || /\.local$/.test(where) || /^(127|10|192\.168)\./.test(where)
+        || /^172\.(1[6-9]|2[0-9]|3[01])\./.test(where)) return;
+    // The browser built into the Claude app, which AI helpers use to test the game.
+    if (/ Claude\//.test(navigator.userAgent)) return;
     function makeId() {
         // Older browsers have no randomUUID, so build the same shape from random numbers.
         if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
