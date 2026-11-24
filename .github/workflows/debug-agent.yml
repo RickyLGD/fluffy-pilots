@@ -1,0 +1,129 @@
+# Debug agent for Fluffy Pilots.
+#
+# 1. "checks" plays the game in a headless browser (qa/tests) on every push, every pull request,
+#    once a day, and whenever you press "Run workflow" on the Actions tab.
+# 2. If a check fails on main (not on a pull request), "fix" hands the failure to Claude.
+#    Claude finds the cause, makes the smallest fix on a new branch, runs the checks again
+#    and opens a pull request for you to review. It never merges anything itself.
+#
+# Claude Sonnet does the fixing. Needs one repository secret: ANTHROPIC_API_KEY (see agents/README.md).
+name: Debug agent
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 13 * * *"  # Every day at 8 AM New York time (13:00 UTC in winter).
+  workflow_dispatch:
+
+concurrency:
+  group: debug-agent-${{ github.ref }}
+  # A newer push replaces an older check on a pull request; on main, nothing is cut short.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04  # Playwright 1.55 supports this Ubuntu, not the newest one
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: qa
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: qa/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Play the game
+        run: npx playwright test
+      - name: Keep the report, screenshots and videos
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failed-checks
+          path: |
+            qa/test-results/
+            qa/playwright-report/
+          retention-days: 14
+
+  fix:
+    needs: checks
+    # Only for failures on main: a pull request's failure is for its author to look at,
+    # and this also stops Claude from trying to fix its own pull requests in a loop.
+    if: failure() && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04  # Playwright 1.55 supports this Ubuntu, not the newest one
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install the checks, so Claude can run them again
+        working-directory: qa
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Get the failed check's report
+        continue-on-error: true  # Missing when the checks could not even be installed.
+        uses: actions/download-artifact@v4
+        with:
+          name: failed-checks
+          path: qa/failed-run
+      - name: Claude looks for the bug and opens a fix
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: >-
+            --model claude-sonnet-5-5
+            --max-turns 40
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(git:*),Bash(gh:*),Bash(npx playwright test:*),Bash(npm test:*),Bash(cd:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(sed:*),Bash(head:*),Bash(tail:*),Bash(jq:*)"
+          prompt: |
+            You are the debug agent for Fluffy Pilots, a browser game (Flappy Bird style, with
+            the player's own pets). This repository is the game's website. The automatic checks
+            in qa/tests/game.spec.js just failed on ${{ github.ref_name }} at commit ${{ github.sha }}.
+            The failed run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            The failed run's report is in qa/failed-run/ (test-results/results.json has every error,
+            and each failed test has a screenshot and error-context.md).
+
+            Do this:
+            1. First run `gh pr list --label debug-agent --state open`. If a pull request is
+               already open for this, stop and do nothing else.
+            2. Read the failures and find the real cause in the game's code (index.html, game.js,
+               app.js, share.js, submit.html, sw.js and the pictures they load). Run the checks
+               yourself with `cd qa && npx playwright test` to reproduce.
+            3. Decide whether the game is broken or the check is wrong. Fix the game when the game
+               is broken. Only change a check when the game's behavior changed on purpose, and say
+               so plainly. Never skip, delete or loosen a check just to make it pass.
+            4. Make the smallest fix that solves it. Then run `cd qa && npx playwright test`
+               again until everything passes.
+            5. Create a branch named debug-agent/fix-<short-name>, commit, push it, and open a pull
+               request into main with `gh pr create --label debug-agent`. Create the label first
+               with `gh label create debug-agent --color D93F0B --force` if it does not exist.
+               Never push to main and never merge.
+            6. Write the pull request in simple Chinese, for the game's owner, who reviews it:
+               - 发生了什么：玩家会遇到什么问题
+               - 原因：一两句话
+               - 修改：改了哪里
+               - 验证：自动检查的结果
+               - 注意：game.js 第一行的 GAME_DATA 和游戏数值来自本地的 flappybird/main.py，
+                 由 tools/build_web.py 生成。如果修复改到了这些，写明本地源码里要做的同样修改，
+                 否则下次重新生成网页版时会被覆盖。
+            7. If you cannot find or fix the cause, do not open a pull request. Open an issue
+               labeled debug-agent instead, in simple Chinese, with what fails, what you checked,
+               and your best guess.
