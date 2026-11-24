@@ -86,6 +86,7 @@ const response = await client.messages.create({
 
 规则：
 - 只用给你的数字，不要编造或推测没有给出的数据。
+- events 里 this_week 和 last_week 是次数，people_this_week 才是人数。写“几个人”时只能用人数，次数要写成“几次”。
 - 中文，简短，手机上一屏能看完，总共不超过 250 字。
 - 格式：
   第一行一句话结论（这周比上周好还是差，最重要的一个数字）。
