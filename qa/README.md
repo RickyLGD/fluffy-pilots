@@ -19,10 +19,12 @@
 ## 什么时候运行
 
 - 每次推送到 main，每个 pull request，每天早上 8 点（纽约时间），或在 Actions 页面手动点 "Run workflow"。
-- 如果 main 上的检查失败，Claude 会读错误、找原因、改最小的地方、再跑一遍检查，然后开一个 pull request 等你审。它不会自己合并。
+- 如果 main 上的检查失败，Claude（Sonnet 5.5）会读错误、找原因、改最小的地方、再跑一遍检查，然后开一个 pull request 等你审。它不会自己合并。
 - 如果找不到原因，它会开一个 issue 说明情况，而不是乱改。
 
 ## 你需要做的设置（一次）
+
+（所有 agent 的设置和花费汇总在 `agents/README.md`。）
 
 1. 在仓库 Settings → Secrets and variables → Actions 里，新建一个 secret，名字叫 `ANTHROPIC_API_KEY`，值是你在 console.anthropic.com 生成的 API key。
 2. 在仓库 Settings → Actions → General 最下面，勾选 "Allow GitHub Actions to create and approve pull requests"，然后保存。不勾这个，Claude 开不了修复 PR。

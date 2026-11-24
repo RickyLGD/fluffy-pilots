@@ -1,0 +1,9 @@
+{
+  "name": "fluffy-pilots-agents",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.13.0",
+    "openai": "7.63.0"
+  }
+}

@@ -1,0 +1,100 @@
+# Weekly report for Fluffy Pilots: the analytics agent and the social media agent, tied together
+# by plain rules (no AI decides what runs).
+#
+# Every Monday at 8 AM New York time (or "Run workflow" on the Actions tab):
+# 1. Analytics agent: a script pulls last week's numbers from PostHog, Claude Haiku writes a
+#    short Chinese summary from just those numbers.
+# 2. Social media agent: ChatGPT drafts 3 short-video posts from the game brief, agents/news.md
+#    and the summary. Drafts only; nothing is ever posted.
+# 3. Coordinator rules: both go into one GitHub issue. If players hit errors last week, the
+#    debug agent is started to play the game and open a fix pull request if something is broken.
+#
+# An agent whose key is missing is skipped, and the issue says so. See agents/README.md.
+name: Weekly report
+
+on:
+  schedule:
+    - cron: "0 13 * * 1"  # Mondays, 13:00 UTC (8 AM New York in winter)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  actions: write  # only to start the debug agent
+
+jobs:
+  report:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: agents
+    env:
+      REPORT_DIR: ${{ runner.temp }}/report
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: agents/package-lock.json
+      - run: npm ci
+
+      - name: Analytics agent (PostHog numbers, Claude Haiku writes the summary)
+        id: analytics
+        env:
+          POSTHOG_PERSONAL_API_KEY: ${{ secrets.POSTHOG_PERSONAL_API_KEY }}
+          POSTHOG_PROJECT_ID: ${{ vars.POSTHOG_PROJECT_ID || '716874' }}
+          POSTHOG_TEST_COHORT_ID: ${{ vars.POSTHOG_TEST_COHORT_ID || '698355' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANALYTICS_MODEL: ${{ vars.ANALYTICS_MODEL }}
+        run: |
+          if [ -z "$POSTHOG_PERSONAL_API_KEY" ] || [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "status=skipped" >> "$GITHUB_OUTPUT"
+          elif node analytics.mjs; then
+            echo "status=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Social media agent (ChatGPT drafts posts)
+        id: social
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SOCIAL_MODEL: ${{ vars.SOCIAL_MODEL }}
+          CAPTION_LANGUAGE: ${{ vars.CAPTION_LANGUAGE }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "status=skipped" >> "$GITHUB_OUTPUT"
+          elif node social.mjs; then
+            echo "status=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Coordinator rules (put it together, decide what else runs)
+        id: report
+        env:
+          ANALYTICS_STATUS: ${{ steps.analytics.outputs.status }}
+          SOCIAL_STATUS: ${{ steps.social.outputs.status }}
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node report.mjs
+
+      - name: Post the weekly report as an issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ATTENTION: ${{ steps.report.outputs.attention }}
+        run: |
+          gh label create weekly-report --color 0E8A16 --force
+          labels="weekly-report"
+          if [ "$ATTENTION" = "true" ]; then
+            gh label create needs-attention --color D93F0B --force
+            labels="$labels,needs-attention"
+          fi
+          gh issue create --title "每周报告 $(date -u +%Y-%m-%d)" --body-file "$REPORT_DIR/report.md" --label "$labels"
+
+      - name: Start the debug agent when players hit errors
+        if: steps.report.outputs.needs_debug == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run debug-agent.yml --ref "${{ github.event.repository.default_branch }}"

@@ -6,7 +6,7 @@
 #    Claude finds the cause, makes the smallest fix on a new branch, runs the checks again
 #    and opens a pull request for you to review. It never merges anything itself.
 #
-# Needs one repository secret: ANTHROPIC_API_KEY (see qa/README.md).
+# Claude Sonnet does the fixing. Needs one repository secret: ANTHROPIC_API_KEY (see agents/README.md).
 name: Debug agent
 
 on:
@@ -89,6 +89,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: >-
+            --model claude-sonnet-5-5
             --max-turns 40
             --allowedTools "Read,Edit,Write,Glob,Grep,Bash(git:*),Bash(gh:*),Bash(npx playwright test:*),Bash(npm test:*),Bash(cd:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(sed:*),Bash(head:*),Bash(tail:*),Bash(jq:*)"
           prompt: |
