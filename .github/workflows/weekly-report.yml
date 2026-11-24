@@ -49,10 +49,15 @@ jobs:
         run: |
           if [ -z "$POSTHOG_PERSONAL_API_KEY" ] || [ -z "$ANTHROPIC_API_KEY" ]; then
             echo "status=skipped" >> "$GITHUB_OUTPUT"
-          elif node analytics.mjs; then
-            echo "status=success" >> "$GITHUB_OUTPUT"
           else
-            echo "status=failure" >> "$GITHUB_OUTPUT"
+            mkdir -p out
+            # Keep the error, so the report can say which key is wrong.
+            if node analytics.mjs 2> out/analytics.err; then
+              echo "status=success" >> "$GITHUB_OUTPUT"
+            else
+              echo "status=failure" >> "$GITHUB_OUTPUT"
+            fi
+            cat out/analytics.err >&2
           fi
 
       - name: Social media agent (ChatGPT drafts posts)
@@ -64,10 +69,15 @@ jobs:
         run: |
           if [ -z "$OPENAI_API_KEY" ]; then
             echo "status=skipped" >> "$GITHUB_OUTPUT"
-          elif node social.mjs; then
-            echo "status=success" >> "$GITHUB_OUTPUT"
           else
-            echo "status=failure" >> "$GITHUB_OUTPUT"
+            mkdir -p out
+            # Keep the error, so the report can say which key is wrong.
+            if node social.mjs 2> out/social.err; then
+              echo "status=success" >> "$GITHUB_OUTPUT"
+            else
+              echo "status=failure" >> "$GITHUB_OUTPUT"
+            fi
+            cat out/social.err >&2
           fi
 
       - name: Coordinator rules (put it together, decide what else runs)
