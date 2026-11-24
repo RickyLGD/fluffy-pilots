@@ -12,8 +12,13 @@ var style = document.createElement("style");
 style.textContent = "#account-panel{position:fixed;inset:0;z-index:100;background:rgba(24,34,30,.8);overflow:auto;padding:16px;box-sizing:border-box;display:flex;align-items:safe center;justify-content:center}" +
     "#account-panel[hidden],#account-panel [hidden]{display:none!important}" +
     "#account-box{box-sizing:border-box;width:100%;max-width:420px;background:#fff4dc;color:#242530;padding:22px;border:4px solid #242530;font:16px/1.5 sans-serif;position:relative;margin:auto}" +
-    "#account-box h2{margin:0 40px 16px 0;font-size:23px}#account-box h3{margin:14px 0 6px;font-size:17px}#account-levels button[aria-pressed=true]{background:#ffd361;color:#242530}#account-box p{margin:12px 0;overflow-wrap:anywhere}#account-box label{overflow-wrap:anywhere}" +
+    "#account-box h2{margin:0 40px 16px 0;font-size:23px}#account-box h3{margin:14px 0 6px;font-size:17px}#account-volume-row{display:flex;align-items:center;gap:12px}#account-volume-amount{min-width:3.6em;text-align:right}#account-box p{margin:12px 0;overflow-wrap:anywhere}#account-box label{overflow-wrap:anywhere}" +
     "#account-box input{display:block;box-sizing:border-box;width:100%;font:18px sans-serif;padding:10px;margin:6px 0 12px;border:2px solid #242530;background:white;color:#242530;user-select:text}" +
+    "#account-box #account-volume-slider{flex:1;min-width:0;width:auto;height:44px;margin:0;padding:0;border:0;background:transparent;cursor:pointer;-webkit-appearance:none;appearance:none;touch-action:none;--track:linear-gradient(to right,#488a42 var(--filled,0%),#fff var(--filled,0%))}" +
+    "#account-volume-slider::-webkit-slider-runnable-track{height:14px;box-sizing:border-box;border:3px solid #242530;background:var(--track)}" +
+    "#account-volume-slider::-webkit-slider-thumb{-webkit-appearance:none;box-sizing:border-box;width:22px;height:32px;margin-top:-12px;border:3px solid #242530;background:#ffd361}" +
+    "#account-volume-slider::-moz-range-track{height:14px;box-sizing:border-box;border:3px solid #242530;background:var(--track)}" +
+    "#account-volume-slider::-moz-range-thumb{box-sizing:border-box;width:22px;height:32px;border:3px solid #242530;border-radius:0;background:#ffd361}" +
     "#account-box button{font:inherit;cursor:pointer;min-height:42px;padding:7px 12px;border:2px solid #242530;background:#488a42;color:white;margin:4px 0}#account-box button:disabled{opacity:.6;cursor:wait}" +
     "#account-box button:focus-visible,#account-box input:focus-visible{outline:3px solid #ce8025;outline-offset:3px}" +
     "#account-box #account-close{position:absolute;right:12px;top:8px;background:#fff4dc;color:#242530;font-size:23px}#account-status{min-height:24px}#account-note{font-size:14px}";
@@ -23,10 +28,9 @@ panel.id = "account-panel";
 panel.hidden = true;
 panel.innerHTML = '<section id="account-box" role="dialog" aria-modal="true" aria-labelledby="account-title">' +
     '<button id="account-close" type="button">×</button><h2 id="account-title"></h2>' +
-    '<div id="account-volume"><h3 id="account-volume-label"></h3>' +
-    '<div id="account-levels" role="group" aria-labelledby="account-volume-label" style="display:flex;gap:6px;flex-wrap:wrap">' +
-    '<button id="account-volume-0" type="button"></button><button id="account-volume-1" type="button"></button>' +
-    '<button id="account-volume-2" type="button"></button><button id="account-volume-3" type="button"></button></div></div>' +
+    '<div id="account-volume"><h3 id="account-volume-label"></h3><div id="account-volume-row">' +
+    '<input id="account-volume-slider" type="range" min="0" max="100" step="1" aria-labelledby="account-volume-label">' +
+    '<span id="account-volume-amount"></span></div></div>' +
     '<h3 id="account-heading"></h3><p id="account-migration" hidden></p><div id="account-signed" hidden><p id="account-email"></p>' +
     '<p id="account-cloud" role="status" aria-live="polite"></p><button id="account-retry" type="button" hidden></button>' +
     '<button id="account-bind" type="button" hidden></button><button id="account-reload" type="button" hidden></button>' +
@@ -41,17 +45,20 @@ panel.innerHTML = '<section id="account-box" role="dialog" aria-modal="true" ari
 document.body.appendChild(panel);
 function element(id) { return document.getElementById("account-" + id); }
 function status(message) { element("status").textContent = message; }
+function renderVolume() {
+    var game = window.flightFriends, percent = game && game.volumePercent ? game.volumePercent() : 0;
+    var amount = percent ? percent + "%" : words("静音", "Muted"), slider = element("volume-slider");
+    slider.value = String(percent);
+    // The thumb's middle travels 22px less than the whole track, so the green ends under it.
+    slider.style.setProperty("--filled", "calc(11px + (100% - 22px) * " + percent / 100 + ")");
+    slider.setAttribute("aria-valuetext", amount);
+    element("volume-amount").textContent = amount;
+}
 function render() {
     element("title").textContent = migrationPrompt && !current ? words("保存你已有的进度", "Keep your progress safe") : words("设置", "Settings");
     element("heading").textContent = words("账号", "Account");
     element("volume-label").textContent = words("音量", "Volume");
-    var game = window.flightFriends;
-    var level = game && game.volumeLevel ? game.volumeLevel() : settings.default_volume_level;
-    [["静音", "Mute"], ["低", "Low"], ["中", "Medium"], ["高", "High"]].forEach(function (label, index) {
-        var button = element("volume-" + index);
-        button.textContent = words.apply(null, label);
-        button.setAttribute("aria-pressed", String(index === level));
-    });
+    renderVolume();
     element("close").setAttribute("aria-label", words("关闭", "Close"));
     element("email-label").textContent = words("你的邮箱", "Your email");
     element("code-label").textContent = words("邮件中的验证码", "Code from the email") + (sentEmail ? " · " + sentEmail : "");
@@ -191,12 +198,14 @@ element("send").addEventListener("submit", function (event) {
     var email = element("address").value.trim();
     if (!element("address").checkValidity()) return;
     operation(function (api) {
-        // Use this site's address, with no owner, developer or challenge query parameters.
-        return api.auth.signInWithOtp({email: email, options: {emailRedirectTo: location.origin + location.pathname}}).then(function (result) {
+        // This site's address plus the game's language, which the email templates read to pick the
+        // email's language. No owner, developer or challenge query parameters.
+        var back = location.origin + location.pathname + "?lang=" + words("zh", "en");
+        return api.auth.signInWithOtp({email: email, options: {emailRedirectTo: back}}).then(function (result) {
             if (result.error) throw result.error;
             sentUntil = Date.now() + 60000;
             sentEmail = email;
-            status(words("邮件已发送，请查看收件箱或垃圾邮件。点击邮件中的登录链接；若收到验证码，在下方输入。", "Email sent. Check your inbox or spam. Open the sign-in link, or enter the code below if your email contains one."));
+            status(words("验证码已发送。请查看收件箱和垃圾邮件，然后在下方输入。", "Code sent. Check your inbox and spam folder, then enter it below."));
             render();
             element("code").focus();
         });
@@ -224,17 +233,20 @@ element("out").addEventListener("click", function () {
         });
     });
 });
-[0, 1, 2, 3].forEach(function (level) {
-    element("volume-" + level).addEventListener("click", function () {
-        window.flightFriends.changeVolume(level);
-        render();
+["input", "change"].forEach(function (kind) {  // While dragging, and again when the finger lifts.
+    element("volume-slider").addEventListener(kind, function () {
+        window.flightFriends.changeVolume(Number(element("volume-slider").value));
+        renderVolume();
     });
 });
 element("retry").addEventListener("click", function () { if (cloud) cloud.flush(); });
 element("bind").addEventListener("click", function () { if (cloud) cloud.bindLocal(); });
 element("reload").addEventListener("click", function () { location.reload(); });
 element("close").addEventListener("click", close);
-panel.addEventListener("click", function (event) { if (event.target === panel) close(); });
+// A drag on the slider that ends outside the box is not a tap outside it.
+var pressedOutside = false;
+panel.addEventListener("pointerdown", function (event) { pressedOutside = event.target === panel; });
+panel.addEventListener("click", function (event) { if (event.target === panel && pressedOutside) close(); });
 panel.addEventListener("keydown", function (event) {
     event.stopPropagation(); // Typing must never steer the plane or start a minigame.
     if (event.key === "Escape") { event.preventDefault(); close(); }
