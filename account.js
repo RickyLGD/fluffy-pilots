@@ -21,7 +21,7 @@ style.textContent = "#account-panel{position:fixed;inset:0;z-index:100;backgroun
     "#account-volume-slider::-moz-range-thumb{box-sizing:border-box;width:22px;height:32px;border:3px solid #242530;border-radius:0;background:#ffd361}" +
     "#account-box button{font:inherit;cursor:pointer;min-height:42px;padding:7px 12px;border:2px solid #242530;background:#488a42;color:white;margin:4px 0}#account-box button:disabled{opacity:.6;cursor:wait}" +
     "#account-box button:focus-visible,#account-box input:focus-visible{outline:3px solid #ce8025;outline-offset:3px}" +
-    "#account-box #account-close{position:absolute;right:12px;top:8px;background:#fff4dc;color:#242530;font-size:23px}#account-status{min-height:24px}#account-note{font-size:14px}";
+    "#account-box #account-close{position:absolute;right:12px;top:8px;background:#fff4dc;color:#242530;font-size:23px}#account-box #account-spam{margin:8px 0;padding:8px 10px;background:#ffd361;border:2px solid #242530}#account-status{min-height:24px}#account-note{font-size:14px}";
 document.head.appendChild(style);
 var panel = document.createElement("div");
 panel.id = "account-panel";
@@ -38,7 +38,7 @@ panel.innerHTML = '<section id="account-box" role="dialog" aria-modal="true" ari
     '<form id="account-send"><label id="account-email-label" for="account-address"></label>' +
     '<input id="account-address" type="email" autocomplete="email" inputmode="email" maxlength="254" required>' +
     '<button id="account-send-button" type="submit"></button></form>' +
-    '<form id="account-verify" hidden><label id="account-code-label" for="account-code"></label>' +
+    '<form id="account-verify" hidden><p id="account-spam"></p><label id="account-code-label" for="account-code"></label>' +
     '<input id="account-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" minlength="6" maxlength="10" required>' +
     '<button id="account-verify-button" type="submit"></button></form>' +
     '<p id="account-status" role="status" aria-live="polite"></p><p id="account-note"></p></section>';
@@ -62,6 +62,7 @@ function render() {
     element("close").setAttribute("aria-label", words("关闭", "Close"));
     element("email-label").textContent = words("你的邮箱", "Your email");
     element("code-label").textContent = words("邮件中的验证码", "Code from the email") + (sentEmail ? " · " + sentEmail : "");
+    element("spam").textContent = words("没收到验证码？没准在垃圾邮箱里，去找一下。", "No code yet? It may be in your spam folder.");
     element("send-button").textContent = Date.now() < sentUntil ? words("请稍后再发送", "Wait before resending") : words("发送登录邮件", "Send sign-in email");
     element("verify-button").textContent = words("验证并登录", "Verify and sign in");
     element("out").textContent = words("退出账号", "Sign out");
@@ -205,7 +206,7 @@ element("send").addEventListener("submit", function (event) {
             if (result.error) throw result.error;
             sentUntil = Date.now() + 60000;
             sentEmail = email;
-            status(words("验证码已发送。请查看收件箱和垃圾邮件，然后在下方输入。", "Code sent. Check your inbox and spam folder, then enter it below."));
+            status(words("验证码已发送，请在上方输入。", "Code sent. Enter it above."));
             render();
             element("code").focus();
         });
