@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>飞行搭档 Agent 指挥台</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a control-tower board. Summary strip on top, then two flight lanes
+   (daily guard / Monday report), each a left-to-right chain of nodes that stacks on phones. */
+:root {
+  --bg: #eef2f6;
+  --panel: #ffffff;
+  --panel-2: #f6f8fb;
+  --ink: #142235;
+  --ink-2: #4c5d72;
+  --ink-3: #7d8ca0;
+  --line: #d5dde7;
+  --accent: #2f6fd6;        /* sky blue: links, arrows */
+  --claude: #c2603e;        /* Claude chips */
+  --claude-bg: #f8e9e2;
+  --openai: #0f8a6c;        /* ChatGPT chips */
+  --openai-bg: #e0f2ec;
+  --rule: #55657a;          /* plain rules / scripts */
+  --rule-bg: #e7ecf2;
+  --ok: #1f8a4c;  --ok-bg: #e1f3e8;
+  --bad: #c8372d; --bad-bg: #fbe5e3;
+  --warn: #b26b00; --warn-bg: #fdf0d8;
+  --run: #2f6fd6; --run-bg: #e2ecfb;
+  --idle: #6c7a8c; --idle-bg: #edf0f4;
+  --shadow: 0 1px 2px rgba(20,34,53,.06), 0 4px 14px rgba(20,34,53,.05);
+  --f-display: "Space Grotesk", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --f-body: system-ui, -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1522; --panel: #152133; --panel-2: #1a283c; --ink: #e6edf6; --ink-2: #a9b8ca; --ink-3: #7b8ba0;
+    --line: #2a3a51; --accent: #6ea2f5;
+    --claude: #ec9473; --claude-bg: #3a2620; --openai: #4cc9a3; --openai-bg: #14332b; --rule: #a9b8ca; --rule-bg: #243247;
+    --ok: #52c784; --ok-bg: #16331f; --bad: #f2756b; --bad-bg: #3d1c1a; --warn: #f0b04a; --warn-bg: #3a2a10;
+    --run: #6ea2f5; --run-bg: #1b2c4a; --idle: #93a2b5; --idle-bg: #212e40;
+    --shadow: 0 1px 2px rgba(0,0,0,.3);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1522; --panel: #152133; --panel-2: #1a283c; --ink: #e6edf6; --ink-2: #a9b8ca; --ink-3: #7b8ba0;
+  --line: #2a3a51; --accent: #6ea2f5;
+  --claude: #ec9473; --claude-bg: #3a2620; --openai: #4cc9a3; --openai-bg: #14332b; --rule: #a9b8ca; --rule-bg: #243247;
+  --ok: #52c784; --ok-bg: #16331f; --bad: #f2756b; --bad-bg: #3d1c1a; --warn: #f0b04a; --warn-bg: #3a2a10;
+  --run: #6ea2f5; --run-bg: #1b2c4a; --idle: #93a2b5; --idle-bg: #212e40;
+  --shadow: 0 1px 2px rgba(0,0,0,.3);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.55 var(--f-body);
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+.wrap {
+  max-width: 1240px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+  display: grid; gap: 20px;
+}
+
+/* Header */
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.eyebrow { font: 600 11px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+h1 { font: 700 clamp(22px, 4vw, 30px)/1.15 var(--f-display); margin: 6px 0 0; text-wrap: balance; }
+.refresh { display: flex; align-items: center; gap: 10px; color: var(--ink-3); font-size: 12px; }
+button {
+  font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 12px; cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button[disabled] { opacity: .6; cursor: progress; }
+
+/* Summary */
+.verdict {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+.verdict .dot { flex: none; width: 12px; height: 12px; border-radius: 50%; margin-top: 5px; background: var(--idle); }
+.verdict.ok .dot { background: var(--ok); }
+.verdict.warn .dot { background: var(--warn); }
+.verdict.bad .dot { background: var(--bad); }
+.verdict.run .dot { background: var(--run); animation: pulse 1.4s ease-in-out infinite; }
+.verdict strong { font-size: 16px; }
+.verdict p { margin: 2px 0 0; color: var(--ink-2); }
+.verdict ul { margin: 6px 0 0; padding-left: 18px; color: var(--ink-2); }
+
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+.tile .k { font-size: 12px; color: var(--ink-3); }
+.tile .v { font: 700 22px/1.2 var(--f-display); font-variant-numeric: tabular-nums; margin-top: 4px; }
+.tile .s { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+
+/* Lanes */
+.lane { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+.lane-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--panel-2); }
+.lane-head h2 { font: 700 16px/1.3 var(--f-display); margin: 0; }
+.lane-head .meta { color: var(--ink-3); font-size: 12px; }
+.lane-head .code { font: 600 11px/1 var(--f-mono); letter-spacing: .08em; color: var(--accent); }
+.flow {
+  display: flex; align-items: stretch; gap: 0; padding: 16px;
+  overflow-x: auto;
+}
+.node {
+  flex: 1 1 0; min-width: 150px; max-width: 240px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
+  padding: 12px; display: flex; flex-direction: column; gap: 6px;
+  position: relative;
+}
+.node.trigger { background: var(--panel-2); border-style: dashed; }
+.node.you { border-color: var(--accent); border-width: 1.5px; }
+.node .kind { font: 600 10px/1 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.node h3 { font: 700 14px/1.3 var(--f-display); margin: 0; }
+.node .desc { font-size: 12px; color: var(--ink-2); margin: 0; }
+.node .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.node .when { font: 12px/1.3 var(--f-mono); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.node .cost { font-size: 12px; color: var(--ink-2); }
+.node .link { font-size: 12px; margin-top: auto; padding-top: 4px; }
+.node .note { font-size: 12px; color: var(--ink-2); background: var(--panel-2); border-radius: 8px; padding: 6px 8px; }
+.node .note.hot { background: var(--warn-bg); color: var(--warn); }
+
+.chip { display: inline-flex; align-items: center; gap: 5px; font: 600 11px/1 var(--f-body); padding: 4px 7px; border-radius: 999px; white-space: nowrap; }
+.chip.claude { color: var(--claude); background: var(--claude-bg); }
+.chip.openai { color: var(--openai); background: var(--openai-bg); }
+.chip.rule, .chip.script { color: var(--rule); background: var(--rule-bg); }
+.chip .glyph { font-family: var(--f-mono); }
+
+.pill { display: inline-flex; align-items: center; gap: 5px; font: 600 11px/1 var(--f-body); padding: 4px 8px; border-radius: 6px; white-space: nowrap; }
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pill.ok { color: var(--ok); background: var(--ok-bg); }
+.pill.bad { color: var(--bad); background: var(--bad-bg); }
+.pill.warn { color: var(--warn); background: var(--warn-bg); }
+.pill.run { color: var(--run); background: var(--run-bg); }
+.pill.run::before { animation: pulse 1.2s ease-in-out infinite; }
+.pill.idle, .pill.skip { color: var(--idle); background: var(--idle-bg); }
+
+.arrow { flex: 0 0 34px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--accent); }
+.arrow svg { width: 26px; height: 12px; display: block; }
+.arrow .lbl { font-size: 10px; line-height: 1.2; color: var(--ink-3); text-align: center; max-width: 64px; }
+.arrow.labeled { flex-basis: 64px; }
+
+.bridge {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; justify-content: center;
+  color: var(--ink-2); font-size: 12px; padding: 0 16px;
+}
+.bridge .line { flex: 0 0 2px; height: 22px; background: repeating-linear-gradient(var(--warn) 0 4px, transparent 4px 8px); }
+.bridge .tag { border: 1px dashed var(--warn); color: var(--warn); border-radius: 999px; padding: 4px 10px; background: var(--panel); }
+
+/* Activity */
+.cols { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); min-width: 0; }
+.card h2 { font: 700 16px/1.3 var(--f-display); margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.list { list-style: none; margin: 0; padding: 4px 0; }
+.list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; padding: 9px 16px; border-bottom: 1px solid var(--line); }
+.list li:last-child { border-bottom: 0; }
+.list .t { min-width: 0; overflow-wrap: anywhere; }
+.list .sub { grid-column: 2 / 4; font-size: 12px; color: var(--ink-3); font-family: var(--f-mono); }
+.list .r { font: 12px var(--f-mono); color: var(--ink-3); white-space: nowrap; }
+.empty { padding: 14px 16px; color: var(--ink-3); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--ink-3); font-size: 12px; align-items: center; }
+footer { color: var(--ink-3); font-size: 12px; }
+footer p { margin: 4px 0; max-width: 72ch; }
+
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+@media (max-width: 900px) {
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cols { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .flow { flex-direction: column; align-items: stretch; overflow: visible; }
+  .node { max-width: none; min-width: 0; }
+  .arrow, .arrow.labeled { flex: 0 0 auto; flex-direction: row; padding: 4px 0; gap: 8px; }
+  .arrow svg { transform: rotate(90deg); width: 20px; }
+  .arrow .lbl { max-width: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Fluffy Pilots · Agent Control</div>
+      <h1>飞行搭档 Agent 指挥台</h1>
+    </div>
+    <div class="refresh">
+      <span id="updated">正在读取…</span>
+      <button id="reload" type="button">刷新</button>
+    </div>
+  </header>
+
+  <section id="verdict" class="verdict run" aria-live="polite">
+    <span class="dot"></span>
+    <div><strong>正在读取 GitHub 上的最新运行记录…</strong></div>
+  </section>
+
+  <section class="tiles" id="tiles" aria-label="概况"></section>
+
+  <section class="lane" aria-labelledby="lane1">
+    <div class="lane-head">
+      <span class="code">LANE A</span>
+      <h2 id="lane1">守护游戏</h2>
+      <span class="meta">每次推送、每个 PR、每天早上 8 点；出错才叫 AI</span>
+    </div>
+    <div class="flow" id="flow-a"></div>
+  </section>
+
+  <div class="bridge" aria-hidden="true">
+    <span class="line"></span>
+    <span class="tag">玩家遇到报错时，协调规则会叫 A 线的检查立刻再跑一次</span>
+    <span class="line"></span>
+  </div>
+
+  <section class="lane" aria-labelledby="lane2">
+    <div class="lane-head">
+      <span class="code">LANE B</span>
+      <h2 id="lane2">每周增长报告</h2>
+      <span class="meta">每周一早上 8 点，按顺序接力</span>
+    </div>
+    <div class="flow" id="flow-b"></div>
+  </section>
+
+  <div class="legend">
+    <span class="chip claude"><span class="glyph">✳</span>Claude</span>
+    <span class="chip openai"><span class="glyph">◎</span>ChatGPT</span>
+    <span class="chip rule"><span class="glyph">≡</span>固定规则 / 脚本，不用 AI</span>
+    <span class="pill ok">通过</span><span class="pill bad">失败</span><span class="pill run">运行中</span><span class="pill idle">待命</span>
+  </div>
+
+  <div class="cols">
+    <section class="card" aria-labelledby="h-recent">
+      <h2 id="h-recent">最近的运行</h2>
+      <ul class="list" id="recent"><li class="empty">读取中…</li></ul>
+    </section>
+    <section class="card" aria-labelledby="h-todo">
+      <h2 id="h-todo">等你处理</h2>
+      <ul class="list" id="todo"><li class="empty">读取中…</li></ul>
+    </section>
+  </div>
+
+  <footer>
+    <p>数据直接来自 GitHub 上公开的运行记录、Issues 和 PR，页面里没有任何 key。花费是按每次用量估算的，实际以 Anthropic 和 OpenAI 后台账单为准。</p>
+    <p>想改哪个 AI 做哪件事，看仓库里的 <a href="https://github.com/RickyLGD/fluffy-pilots/blob/main/agents/README.md" target="_blank" rel="noopener">agents/README.md</a>。</p>
+  </footer>
+</div>
+
+<!-- A saved copy of the data, used only when GitHub can't be reached (for example in a preview). -->
+<script id="snapshot" type="application/json">null</script>
+
+<script>
+(function () {
+  "use strict";
+
+  var REPO = "RickyLGD/fluffy-pilots";
+  var API = "https://api.github.com/repos/" + REPO;
+  var WEB = "https://github.com/" + REPO;
+  var CACHE_KEY = "fp-agent-dashboard-v1";
+
+  // ---------- small helpers ----------
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function safeUrl(u) {
+    return typeof u === "string" && u.indexOf("https://github.com/") === 0 ? u : WEB;
+  }
+  function ago(iso) {
+    if (!iso) return "还没跑过";
+    var s = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (s < 60) return "刚刚";
+    if (s < 3600) return Math.round(s / 60) + " 分钟前";
+    if (s < 86400) return Math.round(s / 3600) + " 小时前";
+    return Math.round(s / 86400) + " 天前";
+  }
+  function dur(a, b) {
+    if (!a || !b) return "";
+    var s = Math.max(0, (new Date(b) - new Date(a)) / 1000);
+    return s < 60 ? Math.round(s) + " 秒" : Math.round(s / 60) + " 分钟";
+  }
+  var WEEK = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+  function clock(d) {
+    return WEEK[d.getDay()] + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  }
+  function inDays(d) {
+    var h = (d - Date.now()) / 3600000;
+    return h < 24 ? "还有 " + Math.max(1, Math.round(h)) + " 小时" : "还有 " + Math.round(h / 24) + " 天";
+  }
+  // Both schedules are 13:00 UTC (8 AM New York in winter).
+  function nextDaily() {
+    var d = new Date(); d.setUTCHours(13, 0, 0, 0);
+    if (d <= new Date()) d.setUTCDate(d.getUTCDate() + 1);
+    return d;
+  }
+  function nextMonday() {
+    var d = nextDaily();
+    while (d.getUTCDay() !== 1) d.setUTCDate(d.getUTCDate() + 1);
+    return d;
+  }
+  var EVENT = { push: "推送后", pull_request: "PR 里", schedule: "定时", workflow_dispatch: "手动" };
+  // A debug run started while a weekly report was running was started by the coordinator rules.
+  function why(r, weeklyRuns) {
+    if (r.event === "workflow_dispatch" && r._kind === "检查") {
+      var t = new Date(r.created).getTime();
+      var byReport = (weeklyRuns || []).some(function (w) {
+        return t >= new Date(w.created).getTime() && t <= new Date(w.updated).getTime() + 120000;
+      });
+      if (byReport) return "协调规则叫起";
+    }
+    return EVENT[r.event] || r.event;
+  }
+
+  // ---------- reading GitHub ----------
+  function gh(path) {
+    return fetch(API + path, { headers: { Accept: "application/vnd.github+json" } }).then(function (r) {
+      if (!r.ok) {
+        var e = new Error("GitHub " + r.status);
+        e.rateLimited = r.status === 403 || r.status === 429;
+        throw e;
+      }
+      return r.json();
+    });
+  }
+  function slimRun(r) {
+    return {
+      id: r.id, name: r.name, event: r.event, branch: r.head_branch, status: r.status,
+      conclusion: r.conclusion, created: r.created_at, updated: r.updated_at, url: r.html_url,
+    };
+  }
+  function slimJob(j) {
+    return {
+      name: j.name, status: j.status, conclusion: j.conclusion, started: j.started_at, completed: j.completed_at, url: j.html_url,
+      steps: (j.steps || []).map(function (s) { return { name: s.name, status: s.status, conclusion: s.conclusion, started: s.started_at, completed: s.completed_at }; }),
+    };
+  }
+  function slimIssue(i) {
+    return {
+      number: i.number, title: i.title, state: i.state, url: i.html_url, created: i.created_at,
+      isPR: !!i.pull_request, merged: !!(i.pull_request && i.pull_request.merged_at),
+      labels: (i.labels || []).map(function (l) { return l.name; }),
+    };
+  }
+  // Reads which agents ran from the newest weekly report's text (the report says it in plain words).
+  function readReport(body) {
+    body = body || "";
+    function part(start, end) {
+      var a = body.indexOf(start); if (a < 0) return null;
+      var b = end ? body.indexOf(end, a + start.length) : -1;
+      return body.slice(a + start.length, b < 0 ? undefined : b);
+    }
+    function state(text) {
+      if (text == null) return "unknown";
+      var head = text.slice(0, 200);
+      if (head.indexOf("没运行") >= 0) return "skipped";
+      if (head.indexOf("运行出错") >= 0) return "failure";
+      return "success";
+    }
+    var warnings = body.split("\n").filter(function (l) { return /^>\s*⚠️/.test(l); }).map(function (l) { return l.replace(/^>\s*⚠️\s*/, ""); });
+    return {
+      analytics: state(part("## 数据小结", "## 下周发帖草稿")),
+      social: state(part("## 下周发帖草稿", "每周一自动生成")),
+      warnings: warnings,
+    };
+  }
+
+  function fetchAll() {
+    return Promise.all([
+      gh("/actions/workflows/debug-agent.yml/runs?per_page=15&exclude_pull_requests=true"),
+      gh("/actions/workflows/weekly-report.yml/runs?per_page=6&exclude_pull_requests=true"),
+      gh("/issues?state=all&per_page=50"),
+    ]).then(function (res) {
+      var debugRuns = res[0].workflow_runs.map(slimRun);
+      var weeklyRuns = res[1].workflow_runs.map(slimRun);
+      var rawIssues = res[2];
+      var mainRun = debugRuns.filter(function (r) { return r.event !== "pull_request"; })[0] || debugRuns[0];
+      var weeklyRun = weeklyRuns.filter(function (r) { return r.conclusion !== "startup_failure"; })[0] || weeklyRuns[0];
+      var latestReport = rawIssues.filter(function (i) {
+        return !i.pull_request && (i.labels || []).some(function (l) { return l.name === "weekly-report"; });
+      })[0];
+      return Promise.all([
+        mainRun ? gh("/actions/runs/" + mainRun.id + "/jobs") : null,
+        weeklyRun ? gh("/actions/runs/" + weeklyRun.id + "/jobs") : null,
+      ]).then(function (jobs) {
+        return {
+          fetchedAt: new Date().toISOString(),
+          debugRuns: debugRuns,
+          weeklyRuns: weeklyRuns,
+          debugJobs: jobs[0] ? jobs[0].jobs.map(slimJob) : [],
+          weeklyJobs: jobs[1] ? jobs[1].jobs.map(slimJob) : [],
+          debugRunId: mainRun ? mainRun.id : null,
+          weeklyRunId: weeklyRun ? weeklyRun.id : null,
+          issues: rawIssues.map(slimIssue),
+          report: latestReport ? readReport(latestReport.body) : null,
+        };
+      });
+    });
+  }
+
+  // ---------- turning data into states ----------
+  function runState(r) {
+    if (!r) return { cls: "idle", text: "还没跑过" };
+    if (r.status !== "completed") return { cls: "run", text: "运行中" };
+    return conclusionState(r.conclusion);
+  }
+  function conclusionState(c) {
+    switch (c) {
+      case "success": return { cls: "ok", text: "通过" };
+      case "failure": case "startup_failure": case "timed_out": return { cls: "bad", text: "失败" };
+      case "cancelled": return { cls: "skip", text: "被取消" };
+      case "skipped": return { cls: "idle", text: "待命" };
+      default: return { cls: "idle", text: c || "未知" };
+    }
+  }
+  function jobOf(list, name) { return (list || []).filter(function (j) { return j.name === name; })[0]; }
+  function stepOf(job, re) { return job ? (job.steps || []).filter(function (s) { return re.test(s.name); })[0] : null; }
+  function pill(s) { return '<span class="pill ' + s.cls + '">' + esc(s.text) + "</span>"; }
+
+  var WHO = {
+    sonnet: { cls: "claude", glyph: "✳", label: "Claude Sonnet 5.5" },
+    haiku: { cls: "claude", glyph: "✳", label: "Claude Haiku 5.5" },
+    gpt: { cls: "openai", glyph: "◎", label: "ChatGPT · gpt-6.1-terra" },
+    rule: { cls: "rule", glyph: "≡", label: "固定规则" },
+    script: { cls: "script", glyph: "≡", label: "无头浏览器 · 无 AI" },
+    posthog: { cls: "script", glyph: "≡", label: "PostHog 脚本" },
+    you: { cls: "rule", glyph: "☺", label: "Ricky" },
+  };
+  function chip(key) { var w = WHO[key]; return '<span class="chip ' + w.cls + '"><span class="glyph">' + w.glyph + "</span>" + esc(w.label) + "</span>"; }
+
+  function node(o) {
+    var h = '<article class="node ' + (o.kind || "") + '">';
+    h += '<div class="kind">' + esc(o.tag) + "</div>";
+    h += "<h3>" + esc(o.title) + "</h3>";
+    if (o.who) h += '<div class="row">' + o.who.map(chip).join("") + "</div>";
+    if (o.state) h += '<div class="row">' + pill(o.state) + (o.when ? '<span class="when">' + esc(o.when) + "</span>" : "") + "</div>";
+    if (o.desc) h += '<p class="desc">' + esc(o.desc) + "</p>";
+    if (o.note) h += '<div class="note' + (o.hot ? " hot" : "") + '">' + esc(o.note) + "</div>";
+    if (o.cost) h += '<div class="cost">花费：' + esc(o.cost) + "</div>";
+    if (o.link) h += '<div class="link"><a href="' + esc(safeUrl(o.link.href)) + '" target="_blank" rel="noopener">' + esc(o.link.text) + " →</a></div>";
+    return h + "</article>";
+  }
+  function arrow(label) {
+    return '<div class="arrow' + (label ? " labeled" : "") + '" aria-hidden="true"><svg viewBox="0 0 26 12"><path d="M0 6h22M17 1l6 5-6 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      (label ? '<span class="lbl">' + esc(label) + "</span>" : "") + "</div>";
+  }
+
+  // ---------- drawing ----------
+  function render(d, source) {
+    var debugRuns = d.debugRuns || [], weeklyRuns = d.weeklyRuns || [], issues = d.issues || [];
+    debugRuns.forEach(function (r) { r._kind = "检查"; });
+    weeklyRuns.forEach(function (r) { r._kind = "每周报告"; });
+    var mainRun = debugRuns.filter(function (r) { return r.id === d.debugRunId; })[0];
+    var weeklyRun = weeklyRuns.filter(function (r) { return r.id === d.weeklyRunId; })[0];
+    var checks = jobOf(d.debugJobs, "checks"), fix = jobOf(d.debugJobs, "fix");
+    var report = jobOf(d.weeklyJobs, "report");
+    var callStep = stepOf(report, /Start the debug agent/);
+    var rep = d.report || { analytics: "unknown", social: "unknown", warnings: [] };
+
+    var fixPRs = issues.filter(function (i) { return i.isPR && i.labels.indexOf("debug-agent") >= 0; });
+    var openFixPRs = fixPRs.filter(function (i) { return i.state === "open"; });
+    var stuckIssues = issues.filter(function (i) { return !i.isPR && i.state === "open" && i.labels.indexOf("debug-agent") >= 0; });
+    var reports = issues.filter(function (i) { return !i.isPR && i.labels.indexOf("weekly-report") >= 0; });
+    var openReports = reports.filter(function (i) { return i.state === "open"; });
+    var weekAgo = Date.now() - 7 * 86400000;
+    var fixesThisWeek = fixPRs.filter(function (i) { return new Date(i.created) > weekAgo; }).length;
+
+    // States
+    var checksState = checks ? (checks.status !== "completed" ? { cls: "run", text: "运行中" } : conclusionState(checks.conclusion)) : runState(mainRun);
+    var fixState;
+    if (!fix) fixState = { cls: "idle", text: "待命" };
+    else if (fix.status !== "completed") fixState = { cls: "run", text: "正在修" };
+    else if (fix.conclusion === "skipped") fixState = { cls: "idle", text: "待命" };
+    else fixState = fix.conclusion === "success" ? { cls: "ok", text: "已处理" } : { cls: "bad", text: "修复失败" };
+
+    var weeklyState = runState(weeklyRun);
+    var agentState = function (s) {
+      if (weeklyRun && weeklyRun.status !== "completed") return { cls: "run", text: "运行中" };
+      return { success: { cls: "ok", text: "完成" }, failure: { cls: "bad", text: "出错" }, skipped: { cls: "skip", text: "跳过：缺 key" } }[s] || { cls: "idle", text: "未知" };
+    };
+    var calledDebug = callStep && callStep.conclusion === "success";
+
+    // ----- verdict -----
+    var problems = [], running = [];
+    if (checksState.cls === "bad") problems.push("最近一次游戏检查失败了" + (fixState.cls === "run" ? "，Debug agent 正在修。" : "。"));
+    if (fixState.cls === "bad") problems.push("Debug agent 没能修好，看一下它开的 issue。");
+    if (weeklyState.cls === "bad") problems.push("每周报告这次没跑成功。");
+    if (rep.analytics === "failure") problems.push("数据 agent 出错了，多半是 key 或余额的问题。");
+    if (rep.social === "failure") problems.push("文案 agent 出错了，多半是 key 或余额的问题。");
+    if (checksState.cls === "run" || fixState.cls === "run") running.push("游戏检查");
+    if (weeklyState.cls === "run") running.push("每周报告");
+    var todoCount = openFixPRs.length + stuckIssues.length + openReports.length;
+    var v = $("verdict");
+    var cls, head, sub = "", list = "";
+    if (problems.length) {
+      cls = "bad"; head = "有 " + problems.length + " 处需要你看";
+      list = "<ul>" + problems.map(function (p) { return "<li>" + esc(p) + "</li>"; }).join("") + "</ul>";
+    } else if (running.length) {
+      cls = "run"; head = running.join("和") + "正在跑";
+      sub = "跑完这页会自动更新。";
+    } else if (rep.warnings && rep.warnings.length) {
+      cls = "warn"; head = "系统都正常，最新报告里有提醒";
+      list = "<ul>" + rep.warnings.map(function (p) { return "<li>" + esc(p) + "</li>"; }).join("") + "</ul>";
+    } else {
+      cls = "ok"; head = "一切正常";
+      sub = "最近一次游戏检查通过，每周报告也按时出了。";
+    }
+    v.className = "verdict " + cls;
+    v.innerHTML = '<span class="dot"></span><div><strong>' + esc(head) + "</strong>" + (sub ? "<p>" + esc(sub) + "</p>" : "") + list + "</div>";
+
+    // ----- tiles -----
+    var nd = nextDaily(), nm = nextMonday();
+    var cost = 0.03 + fixesThisWeek * 1;
+    $("tiles").innerHTML = [
+      ["等你处理", String(todoCount), openFixPRs.length ? openFixPRs.length + " 个修复 PR 要审" : "没有要审的修复 PR"],
+      ["近 7 天花费（估算）", "$" + cost.toFixed(2), fixesThisWeek ? "报告 $0.03 + " + fixesThisWeek + " 次修复" : "只有每周报告的 $0.03"],
+      ["下次游戏检查", clock(nd), inDays(nd)],
+      ["下次每周报告", clock(nm), inDays(nm)],
+    ].map(function (t) {
+      return '<div class="tile"><div class="k">' + esc(t[0]) + '</div><div class="v">' + esc(t[1]) + '</div><div class="s">' + esc(t[2]) + "</div></div>";
+    }).join("");
+
+    // ----- lane A -----
+    var latestFix = fixPRs[0];
+    $("flow-a").innerHTML = [
+      node({ kind: "trigger", tag: "触发", title: "什么时候启动",
+        desc: "推送到 main、每个 PR、每天 8 点，或每周报告发现玩家报错时。",
+        state: mainRun ? { cls: "idle", text: "上次：" + why(mainRun, weeklyRuns) } : null,
+        when: mainRun ? ago(mainRun.created) : "" }),
+      arrow(),
+      node({ tag: "检查", title: "自动检查", who: ["script"], state: checksState,
+        when: checks ? ago(checks.completed || checks.started) + (checks.completed ? " · 用时 " + dur(checks.started, checks.completed) : "") : "",
+        desc: "在电脑和手机两种屏幕上把游戏玩一遍，看有没有报错。",
+        cost: "免费（GitHub Actions）",
+        link: { href: (checks && checks.url) || (mainRun && mainRun.url) || WEB + "/actions/workflows/debug-agent.yml", text: "看这次检查" } }),
+      arrow("main 上失败才走"),
+      node({ tag: "Agent", title: "Debug agent", who: ["sonnet"], state: fixState,
+        when: fix && fix.conclusion !== "skipped" ? ago(fix.completed || fix.started) : "",
+        desc: "读失败报告，找原因，做最小的修改，重跑检查，然后开 PR。从不直接改 main。",
+        note: fixState.text === "待命" ? "检查通过，这次不用它出手。" : null,
+        cost: "约 $0.5–2 一次，只在出错时花",
+        link: { href: WEB + "/actions/workflows/debug-agent.yml", text: "全部运行记录" } }),
+      arrow(),
+      node({ tag: "产出", title: "修复 PR", state: openFixPRs.length ? { cls: "warn", text: openFixPRs.length + " 个待审" } : { cls: "idle", text: fixPRs.length ? "都处理完了" : "还没有过" },
+        when: latestFix ? "最近：" + ago(latestFix.created) : "",
+        desc: latestFix ? "#" + latestFix.number + " " + latestFix.title : "修不好时会改开一个 issue 说明情况。",
+        link: { href: WEB + "/pulls?q=label%3Adebug-agent", text: "看修复 PR" } }),
+      arrow(),
+      node({ kind: "you", tag: "你", title: "审阅并合并", who: ["you"],
+        state: openFixPRs.length + stuckIssues.length ? { cls: "warn", text: "轮到你了" } : { cls: "ok", text: "没有要你做的" },
+        desc: "只有你能合并。合并后网站自动更新，检查会再跑一次。" }),
+    ].join("");
+
+    // ----- lane B -----
+    var latestReport = reports[0];
+    var step = function (re) { var s = stepOf(report, re); return s && s.completed ? "用时 " + dur(s.started, s.completed) : ""; };
+    $("flow-b").innerHTML = [
+      node({ kind: "trigger", tag: "触发", title: "每周一 8 点",
+        desc: "也可以在 Actions 页面点 Run workflow 马上跑。",
+        state: weeklyRun ? { cls: "idle", text: "上次：" + (EVENT[weeklyRun.event] || weeklyRun.event) } : null,
+        when: weeklyRun ? ago(weeklyRun.created) : "" }),
+      arrow(),
+      node({ tag: "Agent", title: "数据 agent", who: ["posthog", "haiku"], state: agentState(rep.analytics),
+        when: step(/Analytics agent/),
+        desc: "脚本从 PostHog 算好上周的数字，Claude 只读这些数字写中文小结。",
+        cost: "每周不到 $0.01" }),
+      arrow("小结交给"),
+      node({ tag: "Agent", title: "文案 agent", who: ["gpt"], state: agentState(rep.social),
+        when: step(/Social media agent/),
+        desc: "按游戏介绍、news.md 和数据小结写 3 条短视频草稿。只出草稿，从不发帖。",
+        cost: "每周约 $0.02" }),
+      arrow(),
+      node({ tag: "协调", title: "协调规则", who: ["rule"], state: weeklyState,
+        when: weeklyRun ? ago(weeklyRun.updated) + " · 用时 " + dur(weeklyRun.created, weeklyRun.updated) : "",
+        desc: "把两份结果合成一份报告；玩家少了一半或遇到报错，就在最上面标 ⚠️。",
+        note: callStep ? (calledDebug ? "这周玩家遇到报错，已叫 A 线再检查一遍。" : "这周没有报错，没叫 Debug。") : null,
+        hot: calledDebug,
+        cost: "免费",
+        link: { href: (weeklyRun && weeklyRun.url) || WEB + "/actions/workflows/weekly-report.yml", text: "看这次运行" } }),
+      arrow(),
+      node({ tag: "产出", title: "每周报告 issue",
+        state: latestReport ? (rep.warnings && rep.warnings.length ? { cls: "warn", text: "有 " + rep.warnings.length + " 条提醒" } : { cls: "ok", text: "已出" }) : { cls: "idle", text: "还没有" },
+        when: latestReport ? ago(latestReport.created) : "",
+        desc: latestReport ? "#" + latestReport.number + " " + latestReport.title : "第一份会在周一早上出现。",
+        link: { href: latestReport ? latestReport.url : WEB + "/issues?q=label%3Aweekly-report", text: "读最新报告" } }),
+      arrow(),
+      node({ kind: "you", tag: "你", title: "读报告，挑草稿拍", who: ["you"],
+        state: openReports.length ? { cls: "warn", text: openReports.length + " 份没关" } : { cls: "ok", text: "都读完了" },
+        desc: "读完把 issue 关掉，这里就知道你看过了。" }),
+    ].join("");
+
+    // ----- recent runs -----
+    var recent = debugRuns.concat(weeklyRuns)
+      .sort(function (a, b) { return new Date(b.created) - new Date(a.created); })
+      .slice(0, 8);
+    $("recent").innerHTML = recent.length ? recent.map(function (r) {
+      var s = runState(r);
+      return "<li>" + pill(s) + '<span class="t"><a href="' + esc(safeUrl(r.url)) + '" target="_blank" rel="noopener">' + esc(r._kind) + "（" + esc(why(r, weeklyRuns)) + "）</a></span>" +
+        '<span class="r">' + esc(ago(r.created)) + "</span>" +
+        '<span class="sub">' + esc(r.branch || "") + (r.status === "completed" ? " · 用时 " + esc(dur(r.created, r.updated)) : "") + "</span></li>";
+    }).join("") : '<li class="empty">还没有运行记录。</li>';
+
+    // ----- to-do -----
+    var todo = openFixPRs.map(function (i) { return { i: i, what: "审修复 PR" }; })
+      .concat(stuckIssues.map(function (i) { return { i: i, what: "Debug 没修好" }; }))
+      .concat(openReports.map(function (i) { return { i: i, what: "读完关掉" }; }));
+    $("todo").innerHTML = todo.length ? todo.map(function (t) {
+      return '<li><span class="pill warn">' + esc(t.what) + '</span><span class="t"><a href="' + esc(safeUrl(t.i.url)) + '" target="_blank" rel="noopener">#' + t.i.number + " " + esc(t.i.title) + "</a></span>" +
+        '<span class="r">' + esc(ago(t.i.created)) + "</span></li>";
+    }).join("") : '<li class="empty">没有等你做的事。</li>';
+
+    // ----- freshness -----
+    var label = {
+      live: "刚从 GitHub 读取 · " + clockShort(new Date(d.fetchedAt)),
+      loading: "显示 " + ago(d.fetchedAt) + "的数据，正在刷新…",
+      cache: "GitHub 暂时不让刷新，显示的是 " + ago(d.fetchedAt) + "的数据",
+      snapshot: "预览存档，数据读取于 " + ago(d.fetchedAt),
+    }[source];
+    $("updated").textContent = label;
+    return running.length > 0;
+  }
+  function clockShort(d) { return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+
+  // ---------- load loop ----------
+  function readCache() { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || "null"); } catch (e) { return null; } }
+  function writeCache(d) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(d)); } catch (e) { /* private window */ } }
+  function readSnapshot() { try { return JSON.parse($("snapshot").textContent); } catch (e) { return null; } }
+
+  var timer = null, busy = false;
+  function schedule(running) {
+    clearTimeout(timer);
+    // Every page load costs a few of GitHub's 60 free reads an hour, so refresh gently.
+    timer = setTimeout(function () { if (!document.hidden) load(); else schedule(running); }, running ? 60000 : 600000);
+  }
+  function load() {
+    if (busy) return; busy = true;
+    $("reload").disabled = true;
+    fetchAll().then(function (d) {
+      writeCache(d);
+      schedule(render(d, "live"));
+    }).catch(function (err) {
+      var cached = readCache() || readSnapshot();
+      if (cached) {
+        schedule(render(cached, readCache() ? "cache" : "snapshot"));
+      } else {
+        var v = $("verdict");
+        v.className = "verdict bad";
+        v.innerHTML = '<span class="dot"></span><div><strong>读不到 GitHub 的数据</strong><p>' +
+          esc(err && err.rateLimited ? "GitHub 限制了每小时的免费读取次数，过一会儿再刷新。" : "检查一下网络，然后点刷新。") + "</p></div>";
+        $("updated").textContent = "读取失败";
+        schedule(false);
+      }
+    }).then(function () { busy = false; $("reload").disabled = false; });
+  }
+
+  $("reload").addEventListener("click", load);
+  var first = readCache() || readSnapshot();
+  if (first) render(first, readCache() ? "loading" : "snapshot");
+  load();
+})();
+</script>
+</body>
+</html>

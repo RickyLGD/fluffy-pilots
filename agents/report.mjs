@@ -51,7 +51,7 @@ const body = [
   warnings.length ? `> ⚠️ ${warnings.join("\n> ⚠️ ")}` : null,
   section("数据小结（Claude）", "analytics", "analytics.md"),
   section("下周发帖草稿（ChatGPT，只是草稿，不会自动发）", "social", "social.md"),
-  `---\n每周一自动生成。想改文案方向：改 agents/game-brief.md 或在 agents/news.md 写这周的新东西。${run}`,
+  `---\n每周一自动生成。想改文案方向：改 agents/game-brief.md 或在 agents/news.md 写这周的新东西。所有 agent 的状态：[指挥台](https://rickylgd.github.io/fluffy-pilots/agents/dashboard/)${run}`,
 ].filter(Boolean).join("\n\n");
 
 write("report.md", body);

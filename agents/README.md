@@ -21,6 +21,17 @@ flowchart LR
   haiku -- 玩家遇到报错 --> checks
 ```
 
+## 指挥台：一眼看完所有 agent
+
+打开 https://rickylgd.github.io/fluffy-pilots/agents/dashboard/ （手机上也能看）。
+
+- 两条线：A 线守护游戏（检查 → Debug agent → 修复 PR → 你），B 线每周报告（数据 agent → 文案 agent → 协调规则 → 报告 → 你）。
+- 每个节点显示谁在做（Claude、ChatGPT 还是固定规则）、上次跑的结果、什么时候、大概花多少钱，点进去是那次的运行记录、PR 或 issue。
+- 最上面一句话告诉你现在一切正常、正在跑，还是需要你看；"等你处理"列出要审的 PR 和没关的报告。
+- 数据来自 GitHub 公开的运行记录，页面里没有 key。每 10 分钟自动刷新一次，有东西在跑时每分钟一次。
+
+页面的代码在 `agents/dashboard/index.html`。
+
 ## 每周报告里有什么
 
 每周一会在仓库的 Issues 里出现一个"每周报告"：
