@@ -43,12 +43,13 @@ const daily = await query(`
 
 const events = await query(`
   SELECT event,
-    countIf(${thisWeek}) AS this_week,
-    countIf(NOT (${thisWeek})) AS last_week,
-    uniqIf(person_id, ${thisWeek}) AS people_this_week
+    countIf(${thisWeek}) AS times_this_week,
+    countIf(NOT (${thisWeek})) AS times_last_week,
+    uniqIf(person_id, ${thisWeek}) AS people_this_week,
+    uniqIf(person_id, NOT (${thisWeek})) AS people_last_week
   FROM events
   WHERE timestamp >= now() - INTERVAL 14 DAY ${notTest} AND NOT startsWith(event, '$')
-  GROUP BY event ORDER BY this_week DESC LIMIT 40`);
+  GROUP BY event ORDER BY times_this_week DESC LIMIT 40`);
 
 const errors = await query(`
   SELECT toString(properties.message) AS message, toString(properties.file) AS file,
@@ -70,7 +71,7 @@ const numbers = {
   last_week: byWeek.last_week || {},
   daily_this_week: daily,
   // Events that showed up this week but not last week usually mean a new feature went live.
-  new_this_week: events.filter((row) => row.this_week > 0 && row.last_week === 0).map((row) => row.event),
+  new_this_week: events.filter((row) => row.times_this_week > 0 && row.times_last_week === 0).map((row) => row.event),
   events,
   errors,
   top_countries: countries,
@@ -86,7 +87,7 @@ const response = await client.messages.create({
 
 规则：
 - 只用给你的数字，不要编造或推测没有给出的数据。
-- events 里 this_week 和 last_week 是次数，people_this_week 才是人数。写“几个人”时只能用人数，次数要写成“几次”。
+- events 里 times_ 开头的是次数，people_ 开头的是人数。写“几个人”时只能用 people_ 的数字，用 times_ 的数字时要写“几次”。
 - 中文，简短，手机上一屏能看完，总共不超过 250 字。
 - 格式：
   第一行一句话结论（这周比上周好还是差，最重要的一个数字）。
