@@ -24,12 +24,27 @@ if (needsDebug) {
   warnings.push(`玩家这周遇到 ${errors} 次报错，已经让 debug agent 去检查游戏，有问题它会开 PR。`);
 }
 
-const why = {
-  skipped: "没运行：还没加需要的 key（见 agents/README.md）",
-  failure: "运行出错：点上面的运行记录看原因",
+const fixKey = (key) => `运行出错：\`${key}\` 填得不对，没被接受。到仓库 Settings → Secrets and variables → Actions 里重新填这个 key，然后在 Actions 页面再跑一次。`;
+
+// Says which key was refused, from the error the agent left. Never copies the error itself into
+// the issue, because the repository is public.
+function failureReason(name) {
+  const error = readOut(`${name}.err`) || "";
+  if (/PostHog answered (401|403)/.test(error)) return fixKey("POSTHOG_PERSONAL_API_KEY");
+  if (/authentication_error|invalid_api_key|invalid x-api-key|Incorrect API key|\b401\b/i.test(error)) {
+    return fixKey(name === "social" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY");
+  }
+  if (/insufficient_quota|credit balance|billing/i.test(error)) {
+    return `运行出错：${name === "social" ? "OpenAI" : "Anthropic"} 账户余额不够，充值后再跑一次。`;
+  }
+  return "运行出错：点下面的运行记录看原因";
+}
+
+const why = { skipped: "没运行：还没加需要的 key（见 agents/README.md）" };
+const section = (title, name, file) => {
+  if (status[name] === "success") return `## ${title}\n\n${(readOut(file) || "").trim() || "（没有内容）"}`;
+  return `## ${title}\n\n${status[name] === "failure" ? failureReason(name) : why[status[name]] || status[name]}`;
 };
-const section = (title, name, file) =>
-  `## ${title}\n\n${status[name] === "success" ? (readOut(file) || "").trim() || "（没有内容）" : why[status[name]] || status[name]}`;
 
 const run = process.env.GITHUB_RUN_URL ? `\n\n[这次运行的记录](${process.env.GITHUB_RUN_URL})` : "";
 const body = [
