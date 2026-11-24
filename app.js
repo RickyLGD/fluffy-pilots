@@ -1,10 +1,12 @@
 // The game as a phone app: putting it on the home screen, moving progress into it on an
 // iPhone, keeping its files for playing without internet, and counting installs.
 (function () {
-    var PREFIX = "flight_friends_";  // Every saved thing of the game starts with this.
     var CODE_START = "FFMOVE1:";  // The start of a progress code, so other copied text is not taken for one.
     var MOVE_ASKED_KEY = "flight_friends_move_asked";
     var LATER_KEY = "flight_friends_install_later";
+    var BACKUP_KEY = "flight_friends_pets_backup";  // game.js keeps a second copy of the save here.
+    // Only gameplay data may travel in a move code. Account tokens and cloud ownership stay here.
+    var MOVE_KEYS = ["flight_friends_pets", "flight_friends_best_score", "flight_friends_nickname"];
 
     function isInstalled() {
         var media = window.matchMedia && window.matchMedia("(display-mode: standalone), (display-mode: fullscreen)");
@@ -52,7 +54,8 @@
         try {
             for (var i = 0; i < window.localStorage.length; i++) {
                 var key = window.localStorage.key(i);
-                if (key && key.indexOf(PREFIX) === 0 && key !== LATER_KEY && key !== MOVE_ASKED_KEY) {
+                // The second copy is left out: the moved save makes its own, and the code stays short.
+                if (MOVE_KEYS.indexOf(key) >= 0) {
                     save[key] = window.localStorage.getItem(key);
                 }
             }
@@ -74,7 +77,7 @@
             var save = JSON.parse(decodeURIComponent(escape(window.atob(text.slice(start + CODE_START.length)))));
             var clean = {}, count = 0;
             for (var key in save) {
-                if (Object.prototype.hasOwnProperty.call(save, key) && key.indexOf(PREFIX) === 0
+                if (Object.prototype.hasOwnProperty.call(save, key) && MOVE_KEYS.indexOf(key) >= 0
                         && typeof save[key] === "string") {
                     clean[key] = save[key];
                     count += 1;
@@ -87,14 +90,19 @@
     }
 
     function hasProgress() {
-        return !!(readStorage("flight_friends_pets") || readStorage("flight_friends_best_score"));
+        return !!(readFriends() || readStorage("flight_friends_best_score"));
+    }
+
+    function readFriends() {
+        // The friends save, or its second copy when the save itself is gone.
+        return readStorage("flight_friends_pets") || readStorage(BACKUP_KEY);
     }
 
     function hasPlayed() {
         // The same signs game.js reads: a flight was started, or there is a best score or a coin.
         if (Number(readStorage("flight_friends_best_score")) > 0) return true;
         try {
-            var saved = JSON.parse(readStorage("flight_friends_pets") || "{}");
+            var saved = JSON.parse(readFriends() || "{}");
             return !!saved && (saved.played === true || saved.coins > 0);
         } catch (error) {
             return false;

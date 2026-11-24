@@ -256,7 +256,7 @@
             .privacy-note { left: 10px; bottom: 6px; }
         }
         /* The page's own words use the game's pixel font (only the letters the game needs). */
-        @font-face {font-family: FlightFriendsPixel; src: url("fonts/pixel.woff?v=d0a9399f5c") format("woff"); font-display: swap;}
+        @font-face {font-family: FlightFriendsPixel; src: url("fonts/pixel.woff?v=b8b0781bf4") format("woff"); font-display: swap;}
         body, button, input, textarea, select, .app-welcome, .app-card, .app-help {
             font-family: FlightFriendsPixel, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif !important;
             font-weight: 400; -webkit-font-smoothing: none; text-shadow: none;
@@ -332,7 +332,7 @@
             page_language: document.documentElement.lang === "en" ? "en" : "zh",
             // Which published build this visitor is running, so two versions can be compared.
             // The build writes it in here, because this runs before the page sets GAME_VERSION.
-            game_version: "085b6e380c58",
+            game_version: "b2e5f8429ac9",
             $process_person_profile: false
         };
         for (var name in details) properties[name] = details[name];
@@ -502,13 +502,19 @@
     </div>
     <div class="app-toast" id="app-move-done" hidden><span class="zh">搬好了！</span><span class="en">All moved in!</span></div>
 
-    <script>window.GAME_VERSION = "085b6e380c58";</script>
+    <script>window.GAME_VERSION = "b2e5f8429ac9";</script>
     <script>
     try {
-        window.flightFriendsStartedEmpty = !(localStorage.getItem("flight_friends_pets") || localStorage.getItem("flight_friends_best_score"));
+        window.flightFriendsOriginalSave = {};
+        ["flight_friends_pets", "flight_friends_pets_backup", "flight_friends_best_score", "flight_friends_nickname"].forEach(function (key) {
+            var text = localStorage.getItem(key);
+            if (text !== null) window.flightFriendsOriginalSave[key] = text;
+        });
+        window.flightFriendsStartedEmpty = !(localStorage.getItem("flight_friends_pets") || localStorage.getItem("flight_friends_pets_backup")
+                                             || localStorage.getItem("flight_friends_best_score"));
     } catch (error) { window.flightFriendsStartedEmpty = true; }
     </script>
-    <script async src="app.js?v=23bf9a5669"></script>
+    <script async src="app.js?v=d7d06e85e1"></script>
     <script>
     function gameScriptFailed(slow) {
         var box = document.getElementById("infobox");
@@ -529,6 +535,8 @@
         if (!window.flightFriends) gameScriptFailed(true);
     }, 15000);
     </script>
-    <script src="game.js?v=4fb74407cc" onerror="gameScriptFailed()"></script>
+    <script src="game.js?v=93acf15b10" onerror="gameScriptFailed()"></script>
+    <script defer src="cloud-save.js?v=379f3b29c8"></script>
+    <script defer src="account.js?v=1fa00e6b42"></script>
 </body>
 </html>
