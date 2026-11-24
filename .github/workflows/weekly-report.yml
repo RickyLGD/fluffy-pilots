@@ -29,8 +29,6 @@ jobs:
     defaults:
       run:
         working-directory: agents
-    env:
-      REPORT_DIR: ${{ runner.temp }}/report
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -91,7 +89,7 @@ jobs:
             gh label create needs-attention --color D93F0B --force
             labels="$labels,needs-attention"
           fi
-          gh issue create --title "每周报告 $(date -u +%Y-%m-%d)" --body-file "$REPORT_DIR/report.md" --label "$labels"
+          gh issue create --title "每周报告 $(date -u +%Y-%m-%d)" --body-file out/report.md --label "$labels"
 
       - name: Start the debug agent when players hit errors
         if: steps.report.outputs.needs_debug == 'true'
