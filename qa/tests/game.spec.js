@@ -116,12 +116,30 @@ async function startFlight(page, isMobile) {
   return state;
 }
 
+// A first visit on an upright phone opens with a welcome card, and the first finished flight
+// on a phone offers to install the game. A player taps "Start" and "Later"; so do the tests.
+async function tapStartOnWelcome(page) {
+  const welcome = page.locator("#app-welcome");
+  if (await welcome.isVisible()) {
+    await page.locator("#app-welcome-go").tap();
+    await expect(welcome, "The welcome card did not close after tapping Start").toBeHidden();
+  }
+}
+
+async function closeInstallCard(page) {
+  const card = page.locator("#app-card");
+  if (await card.isVisible()) {
+    await page.locator("#app-later").tap();
+    await expect(card, "The install card did not close after tapping Later").toBeHidden();
+  }
+}
+
 function expectNoProblems(problems) {
   expect(problems, `The browser reported problems:\n${problems.join("\n")}`).toEqual([]);
 }
 
 test.describe("Fluffy Pilots", () => {
-  test("opens and draws the home page", async ({ page, baseURL }) => {
+  test("opens and draws the home page", async ({ page, baseURL, isMobile }) => {
     const problems = await openGame(page, baseURL);
     await waitUntilReady(page);
 
@@ -136,12 +154,16 @@ test.describe("Fluffy Pilots", () => {
       return seen.size;
     });
     expect(colors, "The game canvas looks blank").toBeGreaterThan(5);
+    if (isMobile) {
+      await expect(page.locator("#app-welcome"), "A first visit on a phone should open with the welcome card").toBeVisible();
+    }
     expectNoProblems(problems);
   });
 
   test("a flight starts, scores, crashes and starts again", async ({ page, baseURL, isMobile }) => {
     const problems = await openGame(page, baseURL);
     await waitUntilReady(page);
+    await tapStartOnWelcome(page);
 
     await startFlight(page, isMobile);
     expect(await trackEvents(page, "game_start")).toHaveLength(1);
@@ -159,6 +181,7 @@ test.describe("Fluffy Pilots", () => {
 
     // The results ignore taps for a moment, then "again" starts a second flight.
     await page.waitForTimeout(900);
+    if (isMobile) await closeInstallCard(page);
     await tapButton(page, "crashAgain", isMobile);
     await expect.poll(async () => (await trackEvents(page, "game_start")).length, {
       message: "Tapping again on the crash screen did not start a second flight",
@@ -181,6 +204,7 @@ test.describe("Fluffy Pilots", () => {
   test("the park opens from the home page", async ({ page, baseURL, isMobile }) => {
     const problems = await openGame(page, baseURL);
     await waitUntilReady(page);
+    await tapStartOnWelcome(page);
     await tapButton(page, "homeDoor", isMobile);
     await expect.poll(async () => (await gameState(page)).park.open, {
       message: "Tapping the door on the home page did not open the park",
