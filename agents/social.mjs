@@ -43,3 +43,7 @@ if (!drafts) throw new Error(`ChatGPT returned no text (status: ${response.statu
 write("social.md", drafts);
 console.log(drafts);
 console.log(`\n[tokens] in ${response.usage?.input_tokens}, out ${response.usage?.output_tokens} (${MODEL})`);
+// Token use for this step, so the weekly report and the dashboard can show it.
+write("social.usage.json", JSON.stringify({
+  model: MODEL, input_tokens: response.usage?.input_tokens || 0, output_tokens: response.usage?.output_tokens || 0,
+}));

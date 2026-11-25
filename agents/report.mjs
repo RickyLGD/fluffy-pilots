@@ -46,11 +46,26 @@ const section = (title, name, file) => {
   return `## ${title}\n\n${status[name] === "failure" ? failureReason(name) : why[status[name]] || status[name]}`;
 };
 
+// Rule 3: show how many tokens each AI step used. The hidden line is for the dashboard.
+const usage = {};
+for (const name of ["analytics", "social"]) {
+  if (status[name] !== "success") continue;
+  try { usage[name] = JSON.parse(readOut(`${name}.usage.json`) || "null"); } catch { /* no usage file */ }
+  if (!usage[name]) delete usage[name];
+}
+const fmt = (n) => Number(n || 0).toLocaleString("en-US");
+const usageLines = Object.entries(usage).map(([name, u]) =>
+  `- ${name === "analytics" ? "数据 agent" : "文案 agent"}（${u.model}）：读 ${fmt(u.input_tokens)}，写 ${fmt(u.output_tokens)} tokens`);
+const usageSection = usageLines.length
+  ? `## 这次用了多少 token\n\n${usageLines.join("\n")}\n\n<!-- agent-usage ${JSON.stringify(usage)} -->`
+  : null;
+
 const run = process.env.GITHUB_RUN_URL ? `\n\n[这次运行的记录](${process.env.GITHUB_RUN_URL})` : "";
 const body = [
   warnings.length ? `> ⚠️ ${warnings.join("\n> ⚠️ ")}` : null,
   section("数据小结（Claude）", "analytics", "analytics.md"),
   section("下周发帖草稿（ChatGPT，只是草稿，不会自动发）", "social", "social.md"),
+  usageSection,
   `---\n每周一自动生成。想改文案方向：改 agents/game-brief.md 或在 agents/news.md 写这周的新东西。所有 agent 的状态：[指挥台](https://rickylgd.github.io/fluffy-pilots/agents/dashboard/)${run}`,
 ].filter(Boolean).join("\n\n");
 

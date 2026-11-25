@@ -383,6 +383,10 @@ footer p { margin: 4px 0; max-width: 72ch; }
       analytics: state(part("## 数据小结", "## 下周发帖草稿")),
       social: state(part("## 下周发帖草稿", "每周一自动生成")),
       warnings: warnings,
+      usage: (function () {
+        var m = body.match(/<!-- agent-usage (\{[\s\S]*?\}) -->/);
+        try { return m ? JSON.parse(m[1]) : null; } catch (e) { return null; }
+      })(),
     };
   }
 
@@ -436,6 +440,7 @@ footer p { margin: 4px 0; max-width: 72ch; }
   }
   function jobOf(list, name) { return (list || []).filter(function (j) { return j.name === name; })[0]; }
   function stepOf(job, re) { return job ? (job.steps || []).filter(function (s) { return re.test(s.name); })[0] : null; }
+  function num(n) { return Number(n || 0).toLocaleString("en-US"); }
   function pill(s) { return '<span class="pill ' + s.cls + '">' + esc(s.text) + "</span>"; }
 
   var WHO = {
@@ -457,6 +462,7 @@ footer p { margin: 4px 0; max-width: 72ch; }
     if (o.state) h += '<div class="row">' + pill(o.state) + (o.when ? '<span class="when">' + esc(o.when) + "</span>" : "") + "</div>";
     if (o.desc) h += '<p class="desc">' + esc(o.desc) + "</p>";
     if (o.note) h += '<div class="note' + (o.hot ? " hot" : "") + '">' + esc(o.note) + "</div>";
+    if (o.tokens) h += '<div class="cost">上次 token：读 ' + esc(num(o.tokens.input_tokens)) + "，写 " + esc(num(o.tokens.output_tokens)) + "</div>";
     if (o.cost) h += '<div class="cost">花费：' + esc(o.cost) + "</div>";
     if (o.link) h += '<div class="link"><a href="' + esc(safeUrl(o.link.href)) + '" target="_blank" rel="noopener">' + esc(o.link.text) + " →</a></div>";
     return h + "</article>";
@@ -531,10 +537,12 @@ footer p { margin: 4px 0; max-width: 72ch; }
 
     // ----- tiles -----
     var nd = nextDaily(), nm = nextMonday();
+    var u = rep.usage || {}, totalTokens = 0;
+    ["analytics", "social"].forEach(function (k) { if (u[k]) totalTokens += (u[k].input_tokens || 0) + (u[k].output_tokens || 0); });
     var cost = 0.03 + fixesThisWeek * 1;
     $("tiles").innerHTML = [
       ["等你处理", String(todoCount), openFixPRs.length ? openFixPRs.length + " 个修复 PR 要审" : "没有要审的修复 PR"],
-      ["近 7 天花费（估算）", "$" + cost.toFixed(2), fixesThisWeek ? "报告 $0.03 + " + fixesThisWeek + " 次修复" : "只有每周报告的 $0.03"],
+      ["近 7 天花费（估算）", "$" + cost.toFixed(2), (fixesThisWeek ? "报告 $0.03 + " + fixesThisWeek + " 次修复" : "只有每周报告的 $0.03") + (totalTokens ? "；上份报告共 " + num(totalTokens) + " tokens" : "")],
       ["下次游戏检查", clock(nd), inDays(nd)],
       ["下次每周报告", clock(nm), inDays(nm)],
     ].map(function (t) {
@@ -559,7 +567,7 @@ footer p { margin: 4px 0; max-width: 72ch; }
         when: fix && fix.conclusion !== "skipped" ? ago(fix.completed || fix.started) : "",
         desc: "读失败报告，找原因，做最小的修改，重跑检查，然后开 PR。从不直接改 main。",
         note: fixState.text === "待命" ? "检查通过，这次不用它出手。" : null,
-        cost: "约 $0.5–2 一次，只在出错时花",
+        cost: "约 $0.5–2 一次（估算），只在出错时花",
         link: { href: WEB + "/actions/workflows/debug-agent.yml", text: "全部运行记录" } }),
       arrow(),
       node({ tag: "产出", title: "修复 PR", state: openFixPRs.length ? { cls: "warn", text: openFixPRs.length + " 个待审" } : { cls: "idle", text: fixPRs.length ? "都处理完了" : "还没有过" },
@@ -584,12 +592,14 @@ footer p { margin: 4px 0; max-width: 72ch; }
       node({ tag: "Agent", title: "数据 agent", who: ["posthog", "haiku"], state: agentState(rep.analytics),
         when: step(/Analytics agent/),
         desc: "脚本从 PostHog 算好上周的数字，Claude 只读这些数字写中文小结。",
-        cost: "每周不到 $0.01" }),
+        tokens: rep.usage && rep.usage.analytics,
+        cost: "每周不到 $0.01（估算）" }),
       arrow("小结交给"),
       node({ tag: "Agent", title: "文案 agent", who: ["gpt"], state: agentState(rep.social),
         when: step(/Social media agent/),
         desc: "按游戏介绍、news.md 和数据小结写 3 条短视频草稿。只出草稿，从不发帖。",
-        cost: "每周约 $0.02" }),
+        tokens: rep.usage && rep.usage.social,
+        cost: "每周约 $0.02（估算）" }),
       arrow(),
       node({ tag: "协调", title: "协调规则", who: ["rule"], state: weeklyState,
         when: weeklyRun ? ago(weeklyRun.updated) + " · 用时 " + dur(weeklyRun.created, weeklyRun.updated) : "",

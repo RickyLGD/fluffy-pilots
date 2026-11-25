@@ -103,3 +103,7 @@ const report = response.content.filter((block) => block.type === "text").map((bl
 write("analytics.md", report);
 console.log(report);
 console.log(`\n[tokens] in ${response.usage.input_tokens}, out ${response.usage.output_tokens} (${MODEL})`);
+// Token use for this step, so the weekly report and the dashboard can show it.
+write("analytics.usage.json", JSON.stringify({
+  model: MODEL, input_tokens: response.usage.input_tokens || 0, output_tokens: response.usage.output_tokens || 0,
+}));
