@@ -7410,6 +7410,7 @@ function drawWholeFrame() {
     screen.globalAlpha = 1;
     screen.globalCompositeOperation = "source-over";
     drawBackground();
+    drawHomeGroundTrail();  // Part of the scenery: behind the animals, pillars and front strip.
     drawWeatherBehind();
     // Animals first, so ducking moves them behind their soil blocks.
     drawCreatures();
@@ -7420,7 +7421,6 @@ function drawWholeFrame() {
     });
     drawCoins();
     drawForeground();
-    drawHomeGroundTrail();
     drawWeatherInFront();
     if (death_started_at !== null) {
         drawDeathEffect();
@@ -8977,13 +8977,16 @@ function getHomePlaneY() {
 
 // Take off straight from the home page. In under a second the big plane rises to flying height
 // and shrinks to flying size, and then the player is flying. The house and the pets stay
-// behind on the ground and scroll away like the rest of the world, and the first pillar comes
-// only after them, so there is open sky to practise a few taps (with the beginner's hint).
+// behind on the grass and scroll away with it, behind the pillars, and the first pillar comes
+// later than usual, so there is open sky to practise a few taps (with the beginner's hint).
 //   hand_over: seconds until the player flies; speed_up: seconds for the world to reach flying
 //   speed; ui_fade / picture_fade: seconds for the buttons / the home picture around the
 //   house to fade; free_sky: how much farther away the first pillar starts than usual (pixels).
 var HOME_TAKE_OFF = {hand_over: .8, speed_up: .6, ui_fade: .35, picture_fade: .6, free_sky: 670};
 var homeGroundTrail = null;  // The house and pets left behind on the ground after a take-off.
+// The house stands on the near grass and trees, so it moves at their speed (blitWrapped's 0.4 in
+// drawBackground). At the full world speed it slid across the grass like it was on ice.
+var HOME_HOUSE_SCROLL = 0.4;
 
 function beginHomeTakeOff() {
     if (homeTransition) return;
@@ -9016,10 +9019,10 @@ function getHomeLaunchPose(seconds) {
 }
 
 function drawHomeGroundTrail() {
-    // Drawn with the world, in flight too: the house moves with the ground, the same distance
-    // the world has scrolled, until it has gone past the left edge.
+    // Drawn with the world, in flight too: the house moves with the grass it stands on, until it
+    // has gone past the left edge.
     if (!homeGroundTrail) return;
-    var scrolled = world_scroll - homeGroundTrail.fromScroll;
+    var scrolled = (world_scroll - homeGroundTrail.fromScroll) * HOME_HOUSE_SCROLL;
     if (scrolled > WIDTH + SIDE + 120) { homeGroundTrail = null; return; }
     // The rest of the home picture (its sky, sun, path and fence) fades where it is.
     var time = (ticks() - homeGroundTrail.since) / 1000;
